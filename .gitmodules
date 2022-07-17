@@ -1,0 +1,4 @@
+[submodule "Models/GALAXY"]
+	ignore = untracked
+[submodule "Models/pptod"]
+	ignore = untracked
