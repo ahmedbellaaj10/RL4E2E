@@ -1,6 +1,3 @@
-from abc import ABC, abstractmethod
-
-#galaxy
 from abc import ABC , abstractmethod
 import argparse
 import json
@@ -10,29 +7,18 @@ import random
 import yaml
 import torch
 import subprocess
+import sys
+
 
 
 import numpy as np
 import torch
-
-from galaxy.args import HParams, parse_args
-from galaxy.args import str2bool
-from galaxy.data.dataset import Dataset
-from galaxy.data.field import BPETextField, MultiWOZBPETextField
-from galaxy.models.model_base import ModelBase
-from galaxy.models.generator import Generator
-from galaxy.utils.eval import MultiWOZEvaluator
-from galaxy.trainers.trainer import Trainer , MultiWOZTrainer
-
-# ----------------------------------------
-from transformers import T5Tokenizer
-model_path = r'/home/ahmed/TOD_TEST/Models/pptod/checkpoints/base'
-tokenizer = T5Tokenizer.from_pretrained(model_path)
+import torch.nn.functional as F
 
 
-from Models.pptod.E2E_TOD.modelling.T5Model import T5Gen_Model
-from Models.pptod.E2E_TOD.ontology import sos_eos_tokens
-special_tokens = sos_eos_tokens
+
+
+from adapters import *
 
 
 class Interface(ABC):
@@ -58,127 +44,44 @@ class Interface(ABC):
         pass
 
 class GalaxyInterface(Interface):
-
-
-    parser = argparse.ArgumentParser()
-
-    # parser.add_argument("--do_train", type=str2bool, default=False,
-    #                     help="Whether to run training on the train dataset.")
-
-#     export CUDA_VISIBLE_DEVICES=0
-
-# # Parameters.
-# DATA_NAME=multiwoz
-# PROJECT_NAME=GALAXY
-# MODEL=UnifiedTransformer
-# PROJECT_ROOT=/home/myself/${PROJECT_NAME}
-# SAVE_ROOT=/data_hdd/myself/${PROJECT_NAME}
-# VOCAB_PATH=${PROJECT_ROOT}/model/Bert/vocab.txt
-# VERSION=2.0
-# LOAD_MODEL_DIR=110-35
-# LOAD_MODEL_NAME=state_epoch_7
-# INIT_CHECKPOINT=${SAVE_ROOT}/outputs/${DATA_NAME}${VERSION}/${LOAD_MODEL_DIR}/${LOAD_MODEL_NAME}
-# WITH_JOINT_ACT=false
-# USE_TRUE_PREV_BSPN=false
-# USE_TRUE_PREV_ASPN=false
-# USE_TRUE_PREV_RESP=false
-# USE_TRUE_CURR_BSPN=false
-# USE_TRUE_CURR_ASPN=false
-# USE_TRUE_DB_POINTER=false
-# USE_ALL_PREVIOUS_CONTEXT=true
-# BATCH_SIZE=1
-# BEAM_SIZE=1
-# NUM_GPU=1
-# SEED=10
-# SAVE_DIR=${SAVE_ROOT}/outputs/${DATA_NAME}${VERSION}/${LOAD_MODEL_DIR}.infer
-
-# # Main run.
-# python -u run.py \
-#   --do_infer=true \
-#   --model=${MODEL} \
-#   --save_dir=${SAVE_DIR} \
-#   --data_name=${DATA_NAME} \
-#   --data_root=${PROJECT_ROOT} \
-#   --vocab_path=${VOCAB_PATH} \
-#   --init_checkpoint=${INIT_CHECKPOINT} \
-#   --with_joint_act=${WITH_JOINT_ACT} \
-#   --use_true_prev_bspn=${USE_TRUE_PREV_BSPN} \
-#   --use_true_prev_aspn=${USE_TRUE_PREV_ASPN} \
-#   --use_true_prev_resp=${USE_TRUE_PREV_RESP} \
-#   --use_true_curr_bspn=${USE_TRUE_CURR_BSPN} \
-#   --use_true_curr_aspn=${USE_TRUE_CURR_ASPN} \
-#   --use_true_db_pointer=${USE_TRUE_DB_POINTER} \
-#   --use_all_previous_context=${USE_ALL_PREVIOUS_CONTEXT} \
-#   --batch_size=${BATCH_SIZE} \
-#   --beam_size=${BEAM_SIZE} \
-#   --version=${VERSION} \
-#   --gpu=${NUM_GPU} \
-#   --seed=${SEED} \
-
+    
     def __init__(self):
-        # with open(r'/home/ahmed/TOD_TEST/Models/GALAXY/config.yaml') as file:
-        #     doc = yaml.load(file, Loader=yaml.FullLoader)
-
-        #     args = yaml.dump(doc, sort_keys=True)
-        #     args = json.dumps(args, indent=2)
-        #     print(args)
-        # try :
-        parser = argparse.ArgumentParser()
-        stream = open("/home/ahmed/TOD_TEST/Models/GALAXY/config.yaml", 'r')
+        sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
+        from galaxy.data.dataset import Dataset
+        from galaxy.data.field import BPETextField, MultiWOZBPETextField, CamRestBPETextField, KvretBPETextField
+        from galaxy.trainers.trainer import Trainer, MultiWOZTrainer, CamRestTrainer, KvretTrainer
+        from galaxy.models.model_base import ModelBase
+        from galaxy.models.generator import Generator
+        from galaxy.utils.eval import MultiWOZEvaluator, CamRestEvaluator, KvretEvaluator
+        from galaxy.args import parse_args
+        
+        parser = argparse.ArgumentParser(conflict_handler="resolve")
+        stream = open("/home/ahmed/RL4E2E/Models/galaxy_config.yaml", 'r')
         args = yaml.load_all(stream, Loader=yaml.FullLoader)
         for doc in args:
             for key, value in doc.items():
-
-                print(key + " : " + str(value))
-                # if type(value) is list:
-                #     print(str(len(value)))
-
                 option = "--"+str(key)
-                print("OPTION !!!!!!!!",option)
-                require = False
-                if key in ['vocab_path', 'data_name', 'save_dir']:
-                    require = True
-                if type(value).__name__ == int :
-                    parser.add_argument(option , type=int , help=option , required= require , default=1 )  
-                if type(value).__name__ == bool :
-                    parser.add_argument(option , type=bool , help=option ,required= require ,default=True)  
-                if type(value).__name__ == str :
-                    parser.add_argument(option , type=str , help=option ,required= require, default="this is a string test")  
-        # return
-        # parser = argparse.ArgumentParser()
-
-        # for keys , values in args.items():
-        #     print(keys)
-        # return
-
-        # parser.add_argument("--do_train", type=str2bool, default=False,
-        #                     help="Whether to run training on the train dataset.")
-        # parser.add_argument("--do_test", type=str2bool, default=False,
-        #                     help="Whether to run evaluation on the dev dataset.")
-        # parser.add_argument("--do_infer", type=str2bool, default=False,
-        #                     help="Whether to run inference on the test dataset.")
-        # parser.add_argument("--num_infer_batches", type=int, default=None,
-        #                     help="The number of batches need to infer.\n"
-        #                         "Stay 'None': infer on entrie test dataset.")
-        # parser.add_argument("--hparams_file", type=str, default=None,
-        #                     help="Loading hparams setting from file(.json format).")
+                # if option in ['--vocab_path' , '--version', '--data_root', '--data_processed' , '--filtered', '--max_len' ,]:
+                #     continue
+                if type(value).__name__ == 'bool' :
+                    parser.add_argument(option , type=bool , help=option ,default=value)  
+                if type(value).__name__ == 'str' :
+                    parser.add_argument(option , type=str , help=option , default=value)  
+                if type(value).__name__ == 'int' :
+                    parser.add_argument(option , type=int , help=option , default=value) 
+                if type(value).__name__ == 'float' :
+                    parser.add_argument(option , type=float , help=option , default=value) 
         BPETextField.add_cmdline_argument(parser)
         Dataset.add_cmdline_argument(parser)
         Trainer.add_cmdline_argument(parser)
         
-        hparams = parse_args(parser)
-        return
-        print(json.dumps(hparams, indent=2))
-        return
         ModelBase.add_cmdline_argument(parser)
         
         Generator.add_cmdline_argument(parser)
-        # parser.parse_args()
-        print("parser ", parser)
         hparams = parse_args(parser)
         hparams.use_gpu = torch.cuda.is_available() and hparams.gpu >= 1
         print(json.dumps(hparams, indent=2))
-
+        sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
         bpe = MultiWOZBPETextField(hparams)
         evaluator = MultiWOZEvaluator(reader=bpe)
         hparams.Model.num_token_embeddings = bpe.vocab_size
@@ -206,8 +109,6 @@ class GalaxyInterface(Interface):
         # load model, optimizer and lr_scheduler
         trainer.load()
         print("7chineh")
-        # except :
-        #     print("ta7cha")
 
     def prepare_interface(self):
         pass
@@ -311,57 +212,95 @@ class GalaxyInterface(Interface):
     def evaluate_dialogue(self):
         pass
 
-# def parse_args(parser, arguments):
-#     """ Parse hyper-parameters from cmdline. """
-#     parsed = parser.parse_args(arguments)
-#     args = HParams()
-#     optional_args = parser._action_groups[1]
-#     for action in optional_args._group_actions[1:]:
-#         arg_name = action.dest
-#         args[arg_name] = getattr(parsed, arg_name)
-#     for group in parser._action_groups[2:]:
-#         group_args = HParams()
-#         for action in group._group_actions:
-#             arg_name = action.dest
-#             group_args[arg_name] = getattr(parsed, arg_name)
-#         if len(group_args) > 0:
-#             args[group.title] = group_args
-#     return args
 
 class PptodInterface(Interface): 
 
     def __init__(self):
-        self.model = T5Gen_Model(model_path, tokenizer, special_tokens, dropout=0.0, 
-        add_special_decoder_token=True, is_training=False)
-        self.model.eval()
-        self.sos_context_token_id = tokenizer.convert_tokens_to_ids(['<sos_context>'])[0]
-        self.eos_context_token_id = tokenizer.convert_tokens_to_ids(['<eos_context>'])[0]
-        self.pad_token_id, self.sos_b_token_id, self.eos_b_token_id, self.sos_a_token_id, self.eos_a_token_id, \
-        self.sos_r_token_id, self.eos_r_token_id, self.sos_ic_token_id, self.eos_ic_token_id = \
-        tokenizer.convert_tokens_to_ids(['<_PAD_>', '<sos_b>', 
-        '<eos_b>', '<sos_a>', '<eos_a>', '<sos_r>','<eos_r>', '<sos_d>', '<eos_d>'])
-        # self.bs_prefix_text = 'translate dialogue to belief state:'
-        # self.bs_prefix_id = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(self.bs_prefix_text))
-        # self.da_prefix_text = 'translate dialogue to dialogue action:'
-        # self.da_prefix_id = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(self.da_prefix_text))
-        self.nlg_prefix_text = 'translate dialogue to system response:'
-        self.nlg_prefix_id = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(self.nlg_prefix_text))
-        # self.ic_prefix_text = 'translate dialogue to user intent:'
-        # self.ic_prefix_id = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(self.ic_prefix_text))
+        
+        if torch.cuda.is_available():
+            print ('Cuda is available.')
+        cuda_available = torch.cuda.is_available()
+        if cuda_available:
+            if torch.cuda.device_count() > 1:
+                multi_gpu_training = True
+                print ('Using Multi-GPU training, number of GPU is {}'.format(torch.cuda.device_count()))
+            else:
+                print ('Using single GPU training.')
+        else:
+            pass
+    
+        args = parse_config()
+        print("args" , args)
+        device = torch.device('cuda')
+        sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
+        from dataclass import MultiWozData
+        from config import Config
+        from eval import MultiWozEvaluator
+        cfg = Config(args.data_path_prefix)
+        assert args.model_name.startswith('t5')
+        from transformers import T5Tokenizer
+
+        if args.pretrained_path != 'None':
+            ckpt_name = get_checkpoint_name(args.pretrained_path)
+            pretrained_path = args.pretrained_path + '/' + ckpt_name
+
+        if args.pretrained_path != 'None':
+            print ('Loading Pretrained Tokenizer...')
+            tokenizer = T5Tokenizer.from_pretrained(pretrained_path)
+        else:
+            tokenizer = T5Tokenizer.from_pretrained(args.model_name)
+
+        if args.use_db_as_input == 'True':
+            use_db_as_input = True
+        elif args.use_db_as_input == 'False':
+            use_db_as_input = False
+        else:
+            raise Exception('Wrong Use DB Mode!!!')
+
+        if args.add_prefix == 'True':
+            add_prefix = True
+        elif args.add_prefix == 'False':
+            add_prefix = False
+        else:
+            raise Exception('Wrong Prefix Mode!!!')
+
+        if args.add_special_decoder_token == 'True':
+            add_special_decoder_token = True
+        elif args.add_special_decoder_token == 'False':
+            add_special_decoder_token = False
+        else:
+            raise Exception('Wrong Add Special Token Mode!!!')
+
+        data = MultiWozData(args.model_name, tokenizer, cfg, args.data_path_prefix, shuffle_mode=args.shuffle_mode, 
+            data_mode='train', use_db_as_input=use_db_as_input, add_special_decoder_token=add_special_decoder_token, 
+            train_data_ratio=0.01)
+
+        print ('Data loaded')
+        evaluator = MultiWozEvaluator(data.reader, cfg)
+
+        print ('Start loading model...')
+        assert args.model_name.startswith('t5')
+        from Models.pptod.E2E_TOD.modelling.T5Model import T5Gen_Model
+        if args.pretrained_path != 'None':
+            model = T5Gen_Model(pretrained_path, data.tokenizer, data.special_token_list, dropout=0.0, 
+                add_special_decoder_token=add_special_decoder_token, is_training=True)
+        else:
+            model = T5Gen_Model(args.model_name, data.tokenizer, data.special_token_list, dropout=0.0, 
+                add_special_decoder_token=add_special_decoder_token, is_training=True)
+
+        if cuda_available:
+            model = model.to(device)
+        else:
+            pass
+        model.eval()
+        print ('Model loaded')
 
     def prepare_context(self, dial):
         return context
             
 
     def predict_turn(self):
-        dialogue_context = "<sos_u> can i reserve a five star place for thursday night at 3:30 for 2 people <eos_u> <sos_r> i'm happy to assist you! what city are you dining in? <eos_r> <sos_u> seattle please. <eos_u>"
-        context_id = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(dialogue_context))
-        input_id = self.nlg_prefix_id + [self.sos_context_token_id] + context_id + [self.eos_context_token_id]
-        input_id = torch.LongTensor(input_id).view(1, -1)
-        x = self.model.model.generate(input_ids = input_id, decoder_start_token_id = self.sos_r_token_id,
-                    pad_token_id = self.pad_token_id, eos_token_id = self.eos_r_token_id, max_length = 128)
-        print(self.model.tokenized_decode(x[0]))
-        return self.model.tokenized_decode(x[0])
+       print("predict_turn")
 
     def prepare_interface(self):
         print("prepare_interface")
@@ -378,61 +317,7 @@ class PptodInterface(Interface):
 
 
 if __name__ == "__main__":
-    x = PptodInterface()
-    x.predict_turn()
+    x = GalaxyInterface()
 
 
-#pptod
-import torch
-from transformers import T5Tokenizer
-
-from Models.pptod.E2E_TOD.modelling.T5Model import T5Gen_Model
-from Models.pptod.E2E_TOD.ontology import sos_eos_tokens
-special_tokens = sos_eos_tokens
-
-
-
-from Models.pptod import *
-
-class Interface(ABC):
-    @abstractmethod
-    def predict_turn(self):
-        pass
-
-    @abstractmethod
-    def predict_dialogue(self):
-        pass
-
-class GALAXY_Interface(Interface):
-    def predict_turn(self):
-        pass
-
-    def predict_dialogue(self):
-        pass
-
-class GALAXY_Interface(Interface):
-    def __init__(self):
-        model_path = r'/home/ahmed/RL4E2E/Models/pptod/checkpoints/base'
-        tokenizer = T5Tokenizer.from_pretrained(model_path)
-        model = T5Gen_Model(model_path, tokenizer, special_tokens, dropout=0.0, 
-                add_special_decoder_token=True, is_training=False)
-        model.eval()
-        sos_context_token_id = tokenizer.convert_tokens_to_ids(['<sos_context>'])[0]
-        eos_context_token_id = tokenizer.convert_tokens_to_ids(['<eos_context>'])[0]
-        pad_token_id, sos_b_token_id, eos_b_token_id, sos_a_token_id, eos_a_token_id, \
-        sos_r_token_id, eos_r_token_id, sos_ic_token_id, eos_ic_token_id = \
-        tokenizer.convert_tokens_to_ids(['<_PAD_>', '<sos_b>', 
-        '<eos_b>', '<sos_a>', '<eos_a>', '<sos_r>','<eos_r>', '<sos_d>', '<eos_d>'])
-        nlg_prefix_text = 'translate dialogue to system response:'
-        nlg_prefix_id = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(nlg_prefix_text))
-
-    def prepare_context(self, dial):
-        pass
-
-
-    def predict_turn(self):
-        pass
-
-    def predict_dialogue(self):
-        pass
 

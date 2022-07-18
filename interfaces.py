@@ -19,7 +19,7 @@ from galaxy.data.field import BPETextField, MultiWOZBPETextField
 from galaxy.models.model_base import ModelBase
 from galaxy.models.generator import Generator
 from galaxy.utils.eval import MultiWOZEvaluator
-from galaxy.trainer import Trainer , MultiWOZTrainer
+from galaxy.trainers.trainer import Trainer , MultiWOZTrainer
 
 # ----------------------------------------
 from transformers import T5Tokenizer
