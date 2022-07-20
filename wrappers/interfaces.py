@@ -17,8 +17,8 @@ import torch
 import torch.nn.functional as F
 
 
-from adapters import MyMultiWozData
-from adapters import *
+from wrappers.adapters import MyMultiWozData
+from wrappers.adapters import *
 
 
 class Interface(ABC):
@@ -58,7 +58,7 @@ class GalaxyInterface(Interface):
         from galaxy.utils.eval import MultiWOZEvaluator
         from galaxy.args import parse_args
         from galaxy.args import str2bool
-        from adapters import Hparams , BPETextField , Data , Trainer , Model , Gene
+        from wrappers.adapters import Hparams , BPETextField , Data , Trainer , Model , Gene
 
 
         stream = open("/home/ahmed/RL4E2E/Models/galaxy_config.yaml", 'r')
@@ -224,6 +224,16 @@ class GalaxyInterface(Interface):
             # print('results :', results)
             return turn_output, bleu , tmp_dialog_result , pv_turn
 
+    def evaluate_dialogue(self):
+        print("evaluate_dialogue")
+
+
+    def evaluate_turn(self):
+        print("evaluate_turn")
+
+    def predict_dialogue(self):
+        print("predict_dialogue")
+
 
 class PptodInterface(Interface): 
 
@@ -231,11 +241,6 @@ class PptodInterface(Interface):
         
         if torch.cuda.is_available():
             print ('Cuda is available.')
-            input("sfvs")
-            from numba import cuda 
-            device = cuda.get_current_device()
-            cuda.close()
-            device = cuda.get_current_device()
         self.cuda_available = torch.cuda.is_available()
         if self.cuda_available:
             if torch.cuda.device_count() > 1:
@@ -335,8 +340,15 @@ class PptodInterface(Interface):
         turn["usdx"] = sentence
         return
 
-    def encode_turn(self, turn):
-        pass
+    def evaluate_dialogue(self):
+        print("evaluate_dialogue")
+
+
+    def evaluate_turn(self):
+        print("evaluate_turn")
+
+    def predict_dialogue(self):
+        print("predict_dialogue")
             
 
     def predict_turn(self , one_inference_turn):
@@ -348,14 +360,14 @@ class PptodInterface(Interface):
             ref_bs, ref_act, ref_db = False, False, False # we only consider e2e evaluation
             input_contain_db=self.use_db_as_input
             eva_batch_size=self.args.number_of_gpu * self.args.batch_size_per_gpu
-            dev_batch_list = data.build_all_evaluation_batch_list(ref_bs, ref_act, ref_db, input_contain_db, eva_batch_size , turn )
+            dev_batch_list = self.data.build_all_evaluation_batch_list(ref_bs, ref_act, ref_db, input_contain_db, eva_batch_size , turn )
             dev_batch_num_per_epoch = len(dev_batch_list)
             print ('Number of evaluation batches is %d' % dev_batch_num_per_epoch)
             dial_result = []
             # for p_dev_idx in range(dev_batch_num_per_epoch):
             one_inference_batch = self.prepare_one_inference_batch(dev_batch_list)
             print("one_inference_batch",one_inference_batch)
-            dev_batch_parse_dict = e2e_batch_generate(self.model, one_inference_batch, input_contain_db, data)
+            dev_batch_parse_dict = e2e_batch_generate(self.model, one_inference_batch, input_contain_db, self.data)
                 
             for item in dev_batch_parse_dict:
                 dial_result.append(item)
@@ -388,8 +400,8 @@ class PptodInterface(Interface):
 
 
 if __name__ == "__main__":
-    # interface = "galaxy"
-    interface = "pptod"
+    interface = "galaxy"
+    # interface = "pptod"
     if interface == "galaxy" :
         x = GalaxyInterface()
         dial = x.get_dialogue("sng0073")

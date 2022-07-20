@@ -6,8 +6,8 @@ import numpy as np
 import argparse
 import copy
 from agents.pdqn import PDQNAgent
-from TOD_TEST.environment.Dilaogue_simulator import Dialogue_Simulator
-from Models.wrappers.interfaces import Interface, PptodInterface
+from RL4E2E.environemnt.multiwoz_simulator import MultiwozSimulator
+from wrappers.interfaces import GalaxyInterface, PptodInterface
 
 
 def pad_action(act, act_param):

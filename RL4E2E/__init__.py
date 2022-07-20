@@ -1,1 +1,1 @@
-from ..wrappers.interfaces import GalaxyInterface, PptodInterface 
+from wrappers import interfaces
