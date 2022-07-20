@@ -60,16 +60,8 @@ class GalaxyInterface(Interface):
         from galaxy.args import str2bool
         from adapters import Hparams , BPETextField , Data , Trainer , Model , Gene
 
-        # try :
-        #     from config import Config
-        # except :
-        #     print('no')
-        # parser = argparse.ArgumentParser()
-        # #conflict_handler="resolve")
+
         stream = open("/home/ahmed/RL4E2E/Models/galaxy_config.yaml", 'r')
-        # sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
-        
-        # stream2 = open("bus_db.json", 'r')
         args = yaml.load_all(stream, Loader=yaml.FullLoader)
         for doc in args:
             textfield = BPETextField(vocab_path=doc["vocab_path"], version=doc["version"],data_root=doc["data_root"],data_processed=doc["data_processed"], filtered=doc["filtered"], max_len=doc["max_len"], min_utt_len=doc["min_utt_len"], max_utt_len=doc["max_utt_len"], min_ctx_turn=doc["min_ctx_turn"], max_ctx_turn=doc["max_ctx_turn"], tokenizer_type=doc["tokenizer_type"])
@@ -239,6 +231,11 @@ class PptodInterface(Interface):
         
         if torch.cuda.is_available():
             print ('Cuda is available.')
+            input("sfvs")
+            from numba import cuda 
+            device = cuda.get_current_device()
+            cuda.close()
+            device = cuda.get_current_device()
         self.cuda_available = torch.cuda.is_available()
         if self.cuda_available:
             if torch.cuda.device_count() > 1:
@@ -251,7 +248,7 @@ class PptodInterface(Interface):
     
         self.args = parse_config()
         print("args" , self.args)
-        device = torch.device('cuda')
+        device = torch.device('cpu')
         sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
         from config import Config
         from eval import MultiWozEvaluator
@@ -295,7 +292,7 @@ class PptodInterface(Interface):
             train_data_ratio=0.01)
 
         print ('Data loaded')
-        evaluator = MultiWozEvaluator(self.data.reader, cfg)
+        self.evaluator = MultiWozEvaluator(self.data.reader, cfg)
 
 
 
@@ -322,14 +319,14 @@ class PptodInterface(Interface):
     def copy_dialogue(self , dial):
         return copy.deepcopy(dial)
 
-    def extract_turn(self , dial , num_turn):
-        return dial[num_turn]
+    def get_turn(self , dial , num_turn):
+        return [dial[num_turn]]
 
     def get_turn_with_context(self , dial , num_turn):
         return dial[:num_turn+1]
 
-    def prepare_dialogue(self , dial):
-        return self.data.prepare_dialogue(dial)
+    def prepare_turn(self , dial):
+        return self.data.prepare_dialogue(dial)[-1]
 
     def get_utterance(self , turn):
         return turn["usdx"]
@@ -338,64 +335,38 @@ class PptodInterface(Interface):
         turn["usdx"] = sentence
         return
 
-    
-    # def get_encoded(self , turn):
-    #     from Models.pptod.E2E_TOD.e2e_inference_utlis import e2e_batch_generate
-    #     with torch.no_grad():
-    #         ref_bs, ref_act, ref_db = False, False, False # we only consider e2e evaluation
-    #         self.input_contain_db=self.use_db_as_input
-    #         eva_batch_size =self.args.number_of_gpu * self.args.batch_size_per_gpu
-    #         one_inference_turn = self.data.build_all_evaluation_batch_list(ref_bs, ref_act, ref_db, self.input_contain_db, 
-    #             eva_batch_size=self.args.number_of_gpu * self.args.batch_size_per_gpu, turn=turn)
-    #         print("one inference turn ",one_inference_turn)
-    #         return one_inference_turn
-
-    def get_encoded(self, turn):
-        from Models.pptod.E2E_TOD.e2e_inference_utlis import e2e_batch_generate
-        with torch.no_grad():
-            ref_bs, ref_act, ref_db = False, False, False # we only consider e2e evaluation
-            input_contain_db=self.use_db_as_input
-            eva_batch_size=self.args.number_of_gpu * self.args.batch_size_per_gpu
-            dev_batch_list = self.data.build_all_evaluation_batch_list(ref_bs, ref_act, ref_db, input_contain_db, 
-                eva_batch_size=self.args.number_of_gpu * self.args.batch_size_per_gpu , turn=turn)
-            dev_batch_num_per_epoch = len(dev_batch_list)
-            print ('Number of evaluation batches is %d' % dev_batch_num_per_epoch)
-        return dev_batch_list
-    # def predict_turn(turn):
-    #     with torch.no_grad():
-    #         dial_result = []
-    #         all_dev_result = []
-    #         successful_dials = []
-    #         for p_dev_idx in range(dev_batch_num_per_epoch):
-    #             p.update(p_dev_idx)
-    #             one_inference_batch = dev_batch_list[p_dev_idx]
-    #             dev_batch_parse_dict = e2e_batch_generate(self.model, one_inference_batch, input_contain_db, self.data)
-    #             print("one inference :" , one_inference_batch)
-    #             # new to be deleted
-    #             if dev_batch_parse_dict[0]['turn_num']==0:
-    #                 dial_bleu, dial_success, dial_match = self.evaluator.validation_metric(dial_result)
-    #                 import math
-    #                 print ('The evaluation results are: Inform: {}, Success: {}, BLEU: {}'.format(dial_match, 
-    #                     dial_success, dial_bleu))
-    #                 if math.ceil(dial_success)==100 and math.ceil(dial_match)==100:
-    #                     print("successful")
-    #                     print(dial_result[0]['dial_id'])
-    #                     successful_dials.append(dial_result[0]['dial_id']) 
-    #                 dial_result = []
-    #             for item in dev_batch_parse_dict:
-    #                 dial_result.append(item)
-    #             #end
-    #             for item in dev_batch_parse_dict:
-    #                 all_dev_result.append(item)
-    #         p.finish()
+    def encode_turn(self, turn):
+        pass
             
 
     def predict_turn(self , one_inference_turn):
-        print("one inference turn", one_inference_turn)
         from Models.pptod.E2E_TOD.e2e_inference_utlis import e2e_batch_generate
-        x =  e2e_batch_generate(self.model, one_inference_turn, self.use_db_as_input, self.data)
-        print("x ", x)
-        return x
+        with torch.no_grad():
+            turn = one_inference_turn
+            import time
+            time.sleep(10)
+            ref_bs, ref_act, ref_db = False, False, False # we only consider e2e evaluation
+            input_contain_db=self.use_db_as_input
+            eva_batch_size=self.args.number_of_gpu * self.args.batch_size_per_gpu
+            dev_batch_list = data.build_all_evaluation_batch_list(ref_bs, ref_act, ref_db, input_contain_db, eva_batch_size , turn )
+            dev_batch_num_per_epoch = len(dev_batch_list)
+            print ('Number of evaluation batches is %d' % dev_batch_num_per_epoch)
+            dial_result = []
+            # for p_dev_idx in range(dev_batch_num_per_epoch):
+            one_inference_batch = self.prepare_one_inference_batch(dev_batch_list)
+            print("one_inference_batch",one_inference_batch)
+            dev_batch_parse_dict = e2e_batch_generate(self.model, one_inference_batch, input_contain_db, data)
+                
+            for item in dev_batch_parse_dict:
+                dial_result.append(item)
+            return dial_result
+
+    def prepare_one_inference_batch(self , one_item_batch_list):
+        elements = one_item_batch_list[0]
+        formatted = []
+        for element in elements :
+            formatted.append([element])
+        return formatted
 
     def evaluate_turn(self , output ):
         dial_bleu , _ , _ = self.evaluator.validation_metric(output)
@@ -408,16 +379,17 @@ class PptodInterface(Interface):
     def predict_dialogue(self):
         print("predict_dialogue")
 
-    def evaluate_turn(self):
-        print("evaluate_turn")
+    def evaluate_turn(self , result):
+        dev_bleu, dev_success, dev_match = self.evaluator.validation_metric(result)
+        return dev_bleu, dev_success, dev_match
 
     def evaluate_dialogue(self):
         print("evaluate_dialogue")
 
 
 if __name__ == "__main__":
-    interface = "galaxy"
-    # interface = "pptod"
+    # interface = "galaxy"
+    interface = "pptod"
     if interface == "galaxy" :
         x = GalaxyInterface()
         dial = x.get_dialogue("sng0073")
@@ -426,6 +398,7 @@ if __name__ == "__main__":
         print("turn",turn)
         encoded = x.encode("sng0073",turn)
         print("encode",encoded)
+
         turn_output, bleu , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
         print("----bleu", bleu)
         print("---------------------------------")
@@ -436,9 +409,26 @@ if __name__ == "__main__":
         print("----pv_turn", pv_turn)
         print("---------------------------------")
     else :
-        data = MyMultiWozData()
-        x = PptodInterface()
-        prepared_turn = x.prepare_dialogue(turn_with_context)
-        results = x.predict_turn(encoded, 1)
-        bleu = x.evaluate_turn(predicted_trun)
-        print("bleu for this dialogue is : " , bleu)
+        with torch.no_grad():
+            x = PptodInterface()
+            data = x.data
+            dialogue = x.get_dialogue("sng0073" , mode = 'dev')
+            print("get dialogue done")
+            turn = x.get_turn_with_context(dialogue , 1)
+            print("turn with context", turn)
+            # turn = x.get_turn(dialogue , 1)
+            # print("turn", turn)
+            print("get turn done")
+            
+            # input("fdbdsfbdsgbdgs")
+            prepared_dial = x.prepare_turn(turn)
+            print("preparing data done")
+            print("prepared dial", prepared_dial)
+            # import time
+            # time.sleep(10)
+            dial_result = x.predict_turn(prepared_dial)
+            print("dial result", dial_result)
+            dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
+            print("dev_bleu",dev_bleu)
+            print("dev_success",dev_success) 
+            print("dev_match",dev_match)            

@@ -1,21 +1,16 @@
 import os
-from xmlrpc.client import Boolean
 import yaml
 import sys
-import torch
 import json
-import random
 import numpy as np
 import json
 from torch.nn.utils import rnn
-import progressbar
 sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
 from reader import MultiWozReader
 import ontology
 import utils
 
 from dataclasses import dataclass
-import random
 
 from torch.nn.utils import rnn
 import argparse
@@ -308,22 +303,14 @@ class MyMultiWozData(MultiWozData):
         dial_list = self.flatten_data(dial_id_list)
         return dial_list
 
-
-    
-
     def transform_turn(self , turn):
         turn_copy = copy.deepcopy(turn)
         turn_copy["usdx"] = self.get_utterance(turn)
         return turn_copy
 
-    def tokenize_dial(self , dial):
-        dial_id_list = self.tokenize_raw_data(dial)
-        self.dial_list = self.flatten_data(dial_id_list)
-        return self.dial_list
-        return turn_id_list
-
 
     def build_all_evaluation_batch_list(self, ref_bs, ref_act, ref_db, input_contain_db, eva_batch_size , turn):
+        print("eva_batch_size", eva_batch_size)
         '''
             bool ref_bs: whether using reference belief state to perform generation
                     if with reference belief state, then we also use reference db result
@@ -335,44 +322,39 @@ class MyMultiWozData(MultiWozData):
             str = test  eva_mode: 'dev' or 'test'; perform evaluation either on dev set or test set
            str = test  eva_batch_size: size of each evaluated batch
         '''
-        print("turn" , turn)
-        # all_bs_input_id_list, all_da_input_id_list, all_nlg_input_id_list, all_parse_dict_list = \
-        # [], [], [], []
-        print("len data list" , len(turn))
-    
-        one_bs_input_id_list, one_da_input_id_list, one_nlg_input_id_list, one_parse_dict = \
-        self.parse_one_eva_instance(turn, ref_bs, ref_act, ref_db, input_contain_db)
-        # all_bs_input_id_list.append(one_bs_input_id_list)
-        # all_da_input_id_list.append(one_da_input_id_list)
-        # all_nlg_input_id_list.append(one_nlg_input_id_list)
-        # all_parse_dict_list.append(one_parse_dict)
-        # print("all_bs_input_id_list",all_bs_input_id_list)
-        # print("all_da_input_id_list",all_da_input_id_list)
-        # print("all_nlg_input_id_list",all_nlg_input_id_list)
-        # print("all_parse_dict_list",all_parse_dict_list)
-        # print("eva_batch_size", eva_batch_size)
-
-        assert len(one_bs_input_id_list) == len(one_da_input_id_list)
-        assert len(one_da_input_id_list) == len(one_nlg_input_id_list)
-        assert len(one_nlg_input_id_list) == len(one_parse_dict)
-        # bs_batch_list = self.build_batch_list(all_bs_input_id_list, eva_batch_size)
-        # da_batch_list = self.build_batch_list(all_da_input_id_list, eva_batch_size)
-        # nlg_batch_list = self.build_batch_list(all_nlg_input_id_list, eva_batch_size)
-        # parse_dict_batch_list = self.build_batch_list(all_parse_dict_list, eva_batch_size)
-        # print("bs_batch_list",bs_batch_list)
-        # print("da_batch_list",da_batch_list)
-        # print("nlg_batch_list",nlg_batch_list)
-        # print("parse_dict_batch_list",parse_dict_batch_list)
-        # print("eva_batch_size", eva_batch_size)
-        batch_num = len(one_bs_input_id_list)
+        all_bs_input_id_list, all_da_input_id_list, all_nlg_input_id_list, all_parse_dict_list = \
+        [], [], [], []
+        for item in [turn] :
+            one_bs_input_id_list, one_da_input_id_list, one_nlg_input_id_list, one_parse_dict = \
+            self.parse_one_eva_instance(item, ref_bs, ref_act, ref_db, input_contain_db)
+            all_bs_input_id_list.append(one_bs_input_id_list)
+            all_da_input_id_list.append(one_da_input_id_list)
+            all_nlg_input_id_list.append(one_nlg_input_id_list)
+            all_parse_dict_list.append(one_parse_dict)
+        print("len(one_bs_input_id_list)", len(all_bs_input_id_list))
+        print("len(one_da_input_id_list)", len(all_da_input_id_list))
+        print("len(one_nlg_input_id_list)", len(all_nlg_input_id_list))
+        print("len(one_parse_dict)", len(all_parse_dict_list))
+        assert len(all_bs_input_id_list) == len(all_da_input_id_list)
+        assert len(all_da_input_id_list) == len(all_nlg_input_id_list)
+        assert len(all_nlg_input_id_list) == len(all_parse_dict_list)
+        bs_batch_list = all_bs_input_id_list
+        da_batch_list = all_da_input_id_list
+        nlg_batch_list = all_nlg_input_id_list
+        parse_dict_batch_list = all_parse_dict_list
+        print("bs_batch_list",bs_batch_list)
+        print("da_batch_list",da_batch_list)
+        print("nlg_batch_list",nlg_batch_list)
+        print("parse_dict_batch_list",parse_dict_batch_list)
+        print("eva_batch_size", eva_batch_size)
+        batch_num = len(bs_batch_list)
         print("batch_num", batch_num)
         
         final_batch_list = []
         for idx in range(batch_num):
-            one_final_batch = [one_bs_input_id_list[idx], one_da_input_id_list[idx], one_nlg_input_id_list[idx], one_parse_dict[idx]]
-            if len(one_bs_input_id_list[idx]) == 0: 
+            one_final_batch = [bs_batch_list[idx], da_batch_list[idx], nlg_batch_list[idx], parse_dict_batch_list[idx]]
+            if len(bs_batch_list[idx]) == 0: 
                 continue
             else:
                 final_batch_list.append(one_final_batch)
-        print("len of batch is " , len(final_batch_list))
         return final_batch_list
