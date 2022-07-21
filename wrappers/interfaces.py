@@ -1,38 +1,34 @@
 from abc import ABC , abstractmethod
-import argparse
 import json
-from multiprocessing import context
 import os
 import random
 import yaml
-import torch
-import subprocess
 import sys
-import pandas as pd
-
-
-
-import numpy as np
+import copy
 import torch
 import torch.nn.functional as F
 
+sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
+from galaxy.trainers.trainer import  MultiWOZTrainer 
+from galaxy.models.model_base import ModelBase
+from galaxy.models.generator import Generator
+from galaxy.utils.eval import MultiWOZEvaluator
 
-from wrappers.adapters import MyMultiWozData
-from wrappers.adapters import *
 
+
+sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
+from config import Config
+from eval import MultiWozEvaluator
+from transformers import T5Tokenizer
+from Models.pptod.E2E_TOD.modelling.T5Model import T5Gen_Model
+from Models.pptod.E2E_TOD.e2e_inference_utlis import e2e_batch_generate
+
+from wrappers.adapters import Hparams , BPETextField , Data , Trainer , Model , Gene , MyMultiWOZBPETextField, MyMultiWozData
 
 class Interface(ABC):
 
     @abstractmethod
-    def prepare_interface(self):
-        pass
-
-    @abstractmethod
     def predict_turn(self):
-        pass
-
-    @abstractmethod
-    def predict_dialogue(self):
         pass
 
     @abstractmethod
@@ -40,27 +36,13 @@ class Interface(ABC):
         pass
 
     @abstractmethod
-    def evaluate_dialogue(self):
+    def choose_dialogue(self):
         pass
 
 class GalaxyInterface(Interface):
     
     def __init__(self):
         sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
-        from pprint import pprint
-
-        # pprint(sys.path)
-        from galaxy.data.dataset import Dataset
-        from galaxy.data.field import MultiWOZBPETextField
-        from galaxy.trainers.trainer import  MultiWOZTrainer 
-        from galaxy.models.model_base import ModelBase
-        from galaxy.models.generator import Generator
-        from galaxy.utils.eval import MultiWOZEvaluator
-        from galaxy.args import parse_args
-        from galaxy.args import str2bool
-        from wrappers.adapters import Hparams , BPETextField , Data , Trainer , Model , Gene
-
-
         stream = open("/home/ahmed/RL4E2E/Models/galaxy_config.yaml", 'r')
         args = yaml.load_all(stream, Loader=yaml.FullLoader)
         for doc in args:
@@ -74,18 +56,16 @@ class GalaxyInterface(Interface):
         
         self.hparams.use_gpu = torch.cuda.is_available() and self.hparams.gpu >= 1
         self.data = json.load(open("/home/ahmed/RL4E2E/Models/GALAXY/data/multiwoz2.0/data_for_galaxy.json"))
-        # print(json.dumps(hparams, indent=2))
         os.chdir('/home/ahmed/RL4E2E/Models/GALAXY/')
-        self.reader = MultiWOZBPETextField(self.hparams)
+        self.reader = MyMultiWOZBPETextField(self.hparams)
         self.evaluator = MultiWOZEvaluator(reader=self.reader)
         self.hparams.Model.num_token_embeddings = self.reader.vocab_size
         self.hparams.num_token_embeddings = self.reader.vocab_size
-        print("reader.vocab_size", self.reader.vocab_size)
-        print("reader.hparams.Model.num_token_embeddings", self.hparams.Model.num_token_embeddings)
-        # exit()
+        self.dev_data = self.reader.get_eval_data()
+        self.test_data = self.reader.get_eval_data('test')
+        print("test and dev data loaded")
         self.hparams.Model.num_turn_embeddings = self.reader.max_ctx_turn + 1
         generator = Generator.create(self.hparams, reader=self.reader)
-        print(self.hparams)
         # construct model
         model = ModelBase.create(self.hparams, generator=generator)
         print("Total number of parameters in networks is {}".format(sum(x.numel() for x in model.parameters())))
@@ -100,15 +80,7 @@ class GalaxyInterface(Interface):
         except :
             raise NotImplementedError("Other dataset's trainer to be implemented !")
 
-        # set optimizer and lr_scheduler
-        # if hparams.do_train:
-        #     trainer.set_optimizers()
-
-        # load model, optimizer and lr_scheduler
         self.trainer.load()
-
-    def prepare_interface(self):
-        pass
 
     def to_tensor(self, array):
         """
@@ -117,12 +89,22 @@ class GalaxyInterface(Interface):
         array = torch.tensor(array)
         return array.cuda() if self.hparams.use_gpu else array
 
-    def get_dialogue(self, dial_name):
-        return self.data[dial_name]
+    def get_dialogue(self, mode):
+        if mode == 'dev':
+            data = self.dev_data
+        else :
+            data = self.test_data
+        idx = random.choice(len(data))
+        dial_title = data[idx].keys()[0]
+        return idx , dial_title, data[idx]
 
-    def get_turn(self , dial, turn_num):
+    def get_dialogue_length(dial):
+        return len(dial.keys()[0]['log'])
+
+    def get_turn(self , dial,  turn_num):
+        dial_title = dial.keys()[0]
         dial_copy = copy.deepcopy(dial)
-        dial_copy["log"] = dial_copy["log"][turn_num:turn_num+1]
+        dial_copy[dial_title]["log"] = dial_copy["log"][turn_num:turn_num+1]
         return dial_copy
 
     def copy_dial_or_turn(self , dial_turn):
@@ -220,19 +202,13 @@ class GalaxyInterface(Interface):
             tmp_dialog_result = self.reader.inverse_transpose_turn(turn_with_context[::-1])
             results, _ = self.reader.wrap_result_lm(tmp_dialog_result)
             turn_output = [results[1]]
-            bleu, success, match = self.evaluator.validation_metric(turn_output)
+            
             # print('results :', results)
-            return turn_output, bleu , tmp_dialog_result , pv_turn
+            return turn_output , tmp_dialog_result , pv_turn
 
-    def evaluate_dialogue(self):
-        print("evaluate_dialogue")
-
-
-    def evaluate_turn(self):
-        print("evaluate_turn")
-
-    def predict_dialogue(self):
-        print("predict_dialogue")
+    def evaluate_turn(self , turn_output):
+        bleu, success, match = self.evaluator.validation_metric(turn_output)
+        return bleu, success, match
 
 
 class PptodInterface(Interface): 
@@ -255,11 +231,12 @@ class PptodInterface(Interface):
         print("args" , self.args)
         device = torch.device('cpu')
         sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
-        from config import Config
-        from eval import MultiWozEvaluator
+        # from config import Config
+        # from eval import MultiWozEvaluator
+        # from transformers import T5Tokenizer
         cfg = Config(self.args.data_path_prefix)
         assert self.args.model_name.startswith('t5')
-        from transformers import T5Tokenizer
+        
 
         if self.args.pretrained_path != 'None':
             ckpt_name = get_checkpoint_name(self.args.pretrained_path)
@@ -296,6 +273,9 @@ class PptodInterface(Interface):
             data_mode='train', use_db_as_input=self.use_db_as_input, add_special_decoder_token=self.add_special_decoder_token, 
             train_data_ratio=0.01)
 
+        self.dev_data = self.data.dev_raw_data
+        self.test_data = self.data.test_raw_data
+
         print ('Data loaded')
         self.evaluator = MultiWozEvaluator(self.data.reader, cfg)
 
@@ -303,7 +283,8 @@ class PptodInterface(Interface):
 
         print ('Start loading model...')
         assert self.args.model_name.startswith('t5')
-        from Models.pptod.E2E_TOD.modelling.T5Model import T5Gen_Model
+        
+
         if self.args.pretrained_path != 'None':
             self.model = T5Gen_Model(pretrained_path, self.data.tokenizer, self.data.special_token_list, dropout=0.0, 
                 add_special_decoder_token=self.add_special_decoder_token, is_training=True)
@@ -318,8 +299,17 @@ class PptodInterface(Interface):
         self.model.eval()
         print ('Model loaded')
 
-    def get_dialogue(self , dial_id , mode = 'dev'):
-        return self.data.get_dialogue(dial_id)
+    def get_dialogue(self, mode = 'dev'):
+        if mode == 'dev':
+            data = self.dev_data
+        else :
+            data = self.test_data
+        idx = random.choice(len(data))
+        dial_title = data[idx][0]['dial_id']
+        return idx , dial_title , data[idx]
+
+    def get_dialogue_length(dial):
+        return len(dial)
 
     def copy_dialogue(self , dial):
         return copy.deepcopy(dial)
@@ -340,19 +330,10 @@ class PptodInterface(Interface):
         turn["usdx"] = sentence
         return
 
-    def evaluate_dialogue(self):
-        print("evaluate_dialogue")
-
-
-    def evaluate_turn(self):
-        print("evaluate_turn")
-
-    def predict_dialogue(self):
-        print("predict_dialogue")
             
 
     def predict_turn(self , one_inference_turn):
-        from Models.pptod.E2E_TOD.e2e_inference_utlis import e2e_batch_generate
+        
         with torch.no_grad():
             turn = one_inference_turn
             import time
@@ -380,67 +361,55 @@ class PptodInterface(Interface):
             formatted.append([element])
         return formatted
 
-    def evaluate_turn(self , output ):
-        dial_bleu , _ , _ = self.evaluator.validation_metric(output)
-        return dial_bleu
-
-    def prepare_interface(self):
-        print("prepare_interface")
-
-
-    def predict_dialogue(self):
-        print("predict_dialogue")
 
     def evaluate_turn(self , result):
         dev_bleu, dev_success, dev_match = self.evaluator.validation_metric(result)
         return dev_bleu, dev_success, dev_match
 
-    def evaluate_dialogue(self):
-        print("evaluate_dialogue")
-
 
 if __name__ == "__main__":
     interface = "galaxy"
-    # interface = "pptod"
-    if interface == "galaxy" :
-        x = GalaxyInterface()
-        dial = x.get_dialogue("sng0073")
-        print("len dial", len(dial))
-        turn = x.get_turn_with_context(dial , 1)
-        print("turn",turn)
-        encoded = x.encode("sng0073",turn)
-        print("encode",encoded)
+    # # interface = "pptod"
+    # if interface == "galaxy" :
+    #     x = GalaxyInterface()
+    #     exit()
+    #     dial = x.get_dialogue("sng0073")
+    #     print("len dial", len(dial))
+    #     turn = x.get_turn_with_context(dial , 1)
+    #     print("turn",turn)
+    #     encoded = x.encode("sng0073",turn)
+    #     print("encode",encoded)
 
-        turn_output, bleu , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
-        print("----bleu", bleu)
-        print("---------------------------------")
-        print("----turn_output", turn_output)
-        print("---------------------------------")
-        print("----tmp_dialog_result", tmp_dialog_result)
-        print("---------------------------------")
-        print("----pv_turn", pv_turn)
-        print("---------------------------------")
-    else :
-        with torch.no_grad():
-            x = PptodInterface()
-            data = x.data
-            dialogue = x.get_dialogue("sng0073" , mode = 'dev')
-            print("get dialogue done")
-            turn = x.get_turn_with_context(dialogue , 1)
-            print("turn with context", turn)
-            # turn = x.get_turn(dialogue , 1)
-            # print("turn", turn)
-            print("get turn done")
+    #     turn_output, bleu , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
+    #     print("----bleu", bleu)
+    #     print("---------------------------------")
+    #     print("----turn_output", turn_output)
+    #     print("---------------------------------")
+    #     print("----tmp_dialog_result", tmp_dialog_result)
+    #     print("---------------------------------")
+    #     print("----pv_turn", pv_turn)
+    #     print("---------------------------------")
+    # else :
+    #     with torch.no_grad():
+    #         x = PptodInterface()
+    #         data = x.data
+    #         dialogue = x.get_dialogue("sng0073" , mode = 'dev')
+    #         print("get dialogue done")
+    #         turn = x.get_turn_with_context(dialogue , 1)
+    #         print("turn with context", turn)
+    #         # turn = x.get_turn(dialogue , 1)
+    #         # print("turn", turn)
+    #         print("get turn done")
             
-            # input("fdbdsfbdsgbdgs")
-            prepared_dial = x.prepare_turn(turn)
-            print("preparing data done")
-            print("prepared dial", prepared_dial)
-            # import time
-            # time.sleep(10)
-            dial_result = x.predict_turn(prepared_dial)
-            print("dial result", dial_result)
-            dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
-            print("dev_bleu",dev_bleu)
-            print("dev_success",dev_success) 
-            print("dev_match",dev_match)            
+    #         # input("fdbdsfbdsgbdgs")
+    #         prepared_dial = x.prepare_turn(turn)
+    #         print("preparing data done")
+    #         print("prepared dial", prepared_dial)
+    #         # import time
+    #         # time.sleep(10)
+    #         dial_result = x.predict_turn(prepared_dial)
+    #         print("dial result", dial_result)
+    #         dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
+    #         print("dev_bleu",dev_bleu)
+    #         print("dev_success",dev_success) 
+    #         print("dev_match",dev_match)            

@@ -1,8 +1,6 @@
 """
 Most of the code is from https://github.com/cycraig/MP-DQN
 """
-import sys
-sys.path.append(".")
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,7 +9,6 @@ import numpy as np
 from collections import Counter
 import random
 from torch.autograd import Variable
-# from RLTest4chatbot.agents.agent import Agent
 from RL4E2E.agents.utils.memory import Memory
 from RL4E2E.agents.utils.noise import OrnsteinUhlenbeckActionNoise
 from RL4E2E.environemnt.multiwoz_simulator import MultiwozSimulator

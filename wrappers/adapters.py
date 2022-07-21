@@ -1,4 +1,5 @@
 import os
+import random
 import yaml
 import sys
 import json
@@ -289,14 +290,14 @@ class MyMultiWozData(MultiWozData):
         with open(self.test_json_path) as f:
             self.test_raw_data = json.load(f)
     
-    def get_dialogue(self , dial_id , mode = 'test'):
-        if mode == 'dev':
-            data = self.dev_raw_data
-        else :
-            data = self.test_raw_data
-        for dial in data :
-            if dial[0]["dial_id"] == dial_id:
-                return dial
+    # def get_dialogue(self , dial_id , mode = 'test'):
+    #     if mode == 'dev':
+    #         data = self.dev_raw_data
+    #     else :
+    #         data = self.test_raw_data
+    #     for dial in data :
+    #         if dial[0]["dial_id"] == dial_id:
+    #             return dial
 
     def prepare_dialogue(self ,dial):
         dial_id_list = self.tokenize_raw_data([dial])
@@ -358,3 +359,106 @@ class MyMultiWozData(MultiWozData):
             else:
                 final_batch_list.append(one_final_batch)
         return final_batch_list
+
+
+sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
+from pprint import pprint
+
+# pprint(sys.path)
+from galaxy.data.field import MultiWOZBPETextField
+from galaxy.data.tokenizer import Tokenizer
+from galaxy.utils.db_ops import MultiWozDB
+import spacy
+
+
+class MyMultiWOZBPETextField(MultiWOZBPETextField):
+    """
+    this class inherits from MultiWOZBPETextField which is the data reader class for multiwoz in galaxy
+    it's purpose is to change the particular behaviour of loading and encoding the data since we want 
+    to conserve the text data to apply nlp transformations on it 
+    """
+    def __init__(self, hparams):
+        super(MultiWOZBPETextField, self).__init__(hparams)
+        self.nlp = spacy.load('en_core_web_sm')
+
+        self.db = MultiWozDB({
+            'attraction': 'db/attraction_db_processed.json',
+            'hospital': 'db/hospital_db_processed.json',
+            'hotel': 'db/hotel_db_processed.json',
+            'police': 'db/police_db_processed.json',
+            'restaurant': 'db/restaurant_db_processed.json',
+            'taxi': 'db/taxi_db_processed.json',
+            'train': 'db/train_db_processed.json',
+        })
+        self._build_vocab()
+
+        special_tokens = [self.pad_token, self.bos_token, self.eos_token, self.unk_token]
+        special_tokens.extend(self.add_sepcial_tokens())
+        self.tokenizer = Tokenizer(vocab_path=hparams.vocab_path,
+                                   special_tokens=special_tokens,
+                                   tokenizer_type=hparams.tokenizer_type)
+
+        test_list = [l.strip().lower() for l in open(
+            os.path.join(self.data_root, f'data/multiwoz{self.version}/testListFile.json'), 'r').readlines()]
+        dev_list = [l.strip().lower() for l in open(
+            os.path.join(self.data_root, f'data/multiwoz{self.version}/valListFile.json'), 'r').readlines()]
+        self.dev_files, self.test_files = {}, {}
+        for fn in test_list:
+            self.test_files[fn.replace('.json', '')] = 1
+        for fn in dev_list:
+            self.dev_files[fn.replace('.json', '')] = 1
+
+        self._load_data(save_temp = False)
+
+        return
+
+    def _load_data(self, save_temp=True):
+        """
+        load processed data and encode, or load already encoded data
+        """
+        if save_temp:  # save encoded data
+            encoded_file = os.path.join(self.data_root, f'data/multiwoz{self.version}', self.data_processed)
+
+            if os.path.exists(encoded_file):
+                print('Reading encoded data from {}'.format(encoded_file))
+                self.data = json.loads(
+                    open(os.path.join(self.data_root, f'data/multiwoz{self.version}/data_for_galaxy.json'), 'r', encoding='utf-8').read().lower())
+                encoded_data = json.loads(open(encoded_file, 'r', encoding='utf-8').read())
+                self.train = encoded_data['train']
+                self.dev = encoded_data['dev']
+                self.test = encoded_data['test']
+            else:
+                print('Encoding data now and save the encoded data in {}'.format(encoded_file))
+                # not exists, encode data and save
+                self.data = json.loads(
+                    open(os.path.join(self.data_root, f'data/multiwoz{self.version}/data_for_galaxy.json'), 'r', encoding='utf-8').read().lower())
+                self.train, self.dev, self.test = [], [], []
+                for fn, dial in tqdm(self.data.items()):
+                    if '.json' in fn:
+                        fn = fn.replace('.json', '')
+                    if self.dev_files.get(fn):
+                        self.dev.append(self._get_encoded_data(fn, dial))
+                    if self.test_files.get(fn):
+                        self.test.append(self._get_encoded_data(fn, dial))
+                    else:
+                        self.train.append(self._get_encoded_data(fn, dial))
+
+                # save encoded data
+                encoded_data = {'train': self.train, 'dev': self.dev, 'test': self.test}
+                json.dump(encoded_data, open(encoded_file, 'w'), indent=2)
+        else:  # directly read processed data and encode
+            self.data = json.loads(
+                open(os.path.join(self.data_root, f'data/multiwoz{self.version}/data_for_galaxy.json'), 'r', encoding='utf-8').read().lower())
+            self.train, self.dev, self.test = [], [], []
+            for fn, dial in self.data.items():
+                if '.json' in fn:
+                    fn = fn.replace('.json', '')
+                if self.test_files.get(fn):
+                    self.test.append({fn : dial})
+                if self.dev_files.get(fn):
+                    self.dev.append({fn : dial})
+                else:
+                    self.train.append({fn : dial})
+
+        random.shuffle(self.train)
+        print('train size:{}, dev size:{}, test size:{}'.format(len(self.train), len(self.dev), len(self.test)))

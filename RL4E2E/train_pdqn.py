@@ -16,26 +16,6 @@ def pad_action(act, act_param):
     return (act, params)
 
 
-# def evaluate(env, agent, episodes=1000):
-#     returns = []
-#     timesteps = []
-#     for _ in range(episodes):
-#         state  = env.reset()
-#         terminal = False
-#         t = 0
-#         total_reward = 0.
-#         while not terminal:
-#             t += 1
-#             state = np.array(state, dtype=np.float32, copy=False)
-#             act, act_param, all_action_parameters = agent.act(state)
-#             action = pad_action(act, act_param)
-#             state, reward, terminal, _ = env.step(action)
-#             total_reward += reward
-#         timesteps.append(t)
-#         returns.append(total_reward)
-#     # return np.column_stack((returns, timesteps))
-#     return np.array(returns)
-
 def train(env,args):
     interface = PptodInterface()
     if args.save_dir:
@@ -215,8 +195,8 @@ if __name__ == '__main__':
     # parser.add_argument('--render_freq', default=100, help='How often to render / save frames of an episode.', type=int)
     parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
     parser.add_argument('--action', default="train", help="train or evaluate", type=str)  
-    # env = gym.make('TOD_TESTER-v1') 
-    env = Dialogue_Simulator()
+    parser.add_argument('--model', default="galaxy", choices=["galaxy", "pptod"], help="the model we want to test", type=str) 
     args = parser.parse_args()
+    env = MultiwozSimulator(model=args.model)
     print(args)
     main(env,args)

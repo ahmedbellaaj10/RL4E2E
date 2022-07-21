@@ -3,3 +3,4 @@ Models/pptod
 myvirtualenv/
 PickNPlug/
 internals/
+**/__pycache__/

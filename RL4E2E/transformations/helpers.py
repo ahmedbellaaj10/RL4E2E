@@ -1,6 +1,6 @@
 import nltk
 from nltk.corpus import wordnet
-from RLTest4Chatbot.transformation.constants import WORD_TAG_DICT
+from RL4E2E.transformations.constants import WORD_TAG_DICT
 
 
 def char_repeat(sentence, char_index):
