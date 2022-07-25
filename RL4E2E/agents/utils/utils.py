@@ -1,4 +1,6 @@
 import random
+import numpy as np
+
 """
 The first two actions are from https://github.com/cycraig/MP-DQN
 """
@@ -13,8 +15,22 @@ def hard_update_target_network(source_network, target_network):
         target_param.data.copy_(param.data)
 
 
-def get_random_actions(number_actions , top_k):
-    return random.choice(len(number_actions) , top_k)
+def get_actions(Q_a, top_k):
+    Q_a_array = np.array(Q_a)
+    top_indexes = (-Q_a_array).argsort()[:top_k]
+    top_qa = [Q_a_array[i] for i in top_indexes]
+    top_percentage = np.round(top_qa/ sum(top_qa),2)
+    actions = []
+    j = 0
+    for i in range(len(Q_a)):
+        if i in top_indexes:
+            actions.extend([i, top_percentage[j]])
+            j = j+1
+        else :
+            actions.extend([i, 0.])
+    return actions
 
-def get_actions(q_val , top_k):
-    return (-q_val).argsort()[:top_k]
+def get_random_actions(n_actions, top_k):
+    Q_a = [random.uniform(0,10) for _ in range(n_actions)]
+    actions = get_actions(Q_a, top_k)
+    return actions

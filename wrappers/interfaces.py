@@ -25,6 +25,8 @@ from Models.pptod.E2E_TOD.e2e_inference_utlis import e2e_batch_generate
 
 from wrappers.adapters import Hparams , BPETextField , Data , Trainer , Model , Gene , MyMultiWOZBPETextField, MyMultiWozData
 
+from wrappers.adapters import get_checkpoint_name , parse_config
+
 class Interface(ABC):
 
     @abstractmethod
@@ -35,9 +37,9 @@ class Interface(ABC):
     def evaluate_turn(self):
         pass
 
-    @abstractmethod
-    def choose_dialogue(self):
-        pass
+    # @abstractmethod
+    # def choose_dialogue(self):
+    #     pass
 
 class GalaxyInterface(Interface):
     
@@ -89,13 +91,13 @@ class GalaxyInterface(Interface):
         array = torch.tensor(array)
         return array.cuda() if self.hparams.use_gpu else array
 
-    def get_dialogue(self, mode):
+    def get_dialogue(self, mode="test"):
         if mode == 'dev':
             data = self.dev_data
         else :
             data = self.test_data
-        idx = random.choice(len(data))
-        dial_title = data[idx].keys()[0]
+        idx = random.choice(range(len(data)))
+        dial_title = list(data[idx].keys())[0]
         return idx , dial_title, data[idx]
 
     def get_dialogue_length(dial):
@@ -210,6 +212,8 @@ class GalaxyInterface(Interface):
         bleu, success, match = self.evaluator.validation_metric(turn_output)
         return bleu, success, match
 
+    def get_dialogue_goal(self, dial_title , data):
+        return list(data[dial_title]['goal'].keys())
 
 class PptodInterface(Interface): 
 
@@ -299,12 +303,12 @@ class PptodInterface(Interface):
         self.model.eval()
         print ('Model loaded')
 
-    def get_dialogue(self, mode = 'dev'):
+    def get_dialogue(self, mode = 'test'):
         if mode == 'dev':
             data = self.dev_data
         else :
             data = self.test_data
-        idx = random.choice(len(data))
+        idx = random.choice(range(len(data)))
         dial_title = data[idx][0]['dial_id']
         return idx , dial_title , data[idx]
 
@@ -366,50 +370,58 @@ class PptodInterface(Interface):
         dev_bleu, dev_success, dev_match = self.evaluator.validation_metric(result)
         return dev_bleu, dev_success, dev_match
 
+    def get_dialogue_goal(self, dial_name):
+        all_goals = json.load(open("../RL4E2E/Models/pptod/data/multiwoz2.0/data/multi-woz-analysis/goal_of_each_dials.json"))
+        return list(all_goals[dial_name+".json"].keys())
 
 if __name__ == "__main__":
-    interface = "galaxy"
-    # # interface = "pptod"
-    # if interface == "galaxy" :
-    #     x = GalaxyInterface()
-    #     exit()
-    #     dial = x.get_dialogue("sng0073")
-    #     print("len dial", len(dial))
-    #     turn = x.get_turn_with_context(dial , 1)
-    #     print("turn",turn)
-    #     encoded = x.encode("sng0073",turn)
-    #     print("encode",encoded)
+    # interface = "galaxy"
+    interface = "pptod"
+    if interface == "galaxy" :
+        x = GalaxyInterface()
+        idx , dial_title, dial = x.get_dialogue()
+        print(dial_title)
+        print(x.get_dialogue_goal(dial_title , dial))
+        print("len dial", len(dial))
+        turn = x.get_turn_with_context(dial , 1)
+        print("turn",turn)
+        encoded = x.encode("sng0073",turn)
+        print("encode",encoded)
 
-    #     turn_output, bleu , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
-    #     print("----bleu", bleu)
-    #     print("---------------------------------")
-    #     print("----turn_output", turn_output)
-    #     print("---------------------------------")
-    #     print("----tmp_dialog_result", tmp_dialog_result)
-    #     print("---------------------------------")
-    #     print("----pv_turn", pv_turn)
-    #     print("---------------------------------")
-    # else :
-    #     with torch.no_grad():
-    #         x = PptodInterface()
-    #         data = x.data
-    #         dialogue = x.get_dialogue("sng0073" , mode = 'dev')
-    #         print("get dialogue done")
-    #         turn = x.get_turn_with_context(dialogue , 1)
-    #         print("turn with context", turn)
-    #         # turn = x.get_turn(dialogue , 1)
-    #         # print("turn", turn)
-    #         print("get turn done")
+        turn_output, bleu , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
+        print("----bleu", bleu)
+        print("---------------------------------")
+        print("----turn_output", turn_output)
+        print("---------------------------------")
+        print("----tmp_dialog_result", tmp_dialog_result)
+        print("---------------------------------")
+        print("----pv_turn", pv_turn)
+        print("---------------------------------")
+    else :
+        with torch.no_grad():
+            x = PptodInterface()
+            data = x.data
+            idx , dial_title , dialogue = x.get_dialogue()
+            print("get dialogue done")
+            print(dialogue)
+            exit()
+            print(x.get_dialogue_goal(dial_title))
+
+            turn = x.get_turn_with_context(dialogue , 1)
+            print("turn with context", turn)
+            # turn = x.get_turn(dialogue , 1)
+            # print("turn", turn)
+            print("get turn done")
             
-    #         # input("fdbdsfbdsgbdgs")
-    #         prepared_dial = x.prepare_turn(turn)
-    #         print("preparing data done")
-    #         print("prepared dial", prepared_dial)
-    #         # import time
-    #         # time.sleep(10)
-    #         dial_result = x.predict_turn(prepared_dial)
-    #         print("dial result", dial_result)
-    #         dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
-    #         print("dev_bleu",dev_bleu)
-    #         print("dev_success",dev_success) 
-    #         print("dev_match",dev_match)            
+            # input("fdbdsfbdsgbdgs")
+            prepared_dial = x.prepare_turn(turn)
+            print("preparing data done")
+            print("prepared dial", prepared_dial)
+            # import time
+            # time.sleep(10)
+            dial_result = x.predict_turn(prepared_dial)
+            print("dial result", dial_result)
+            dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
+            print("dev_bleu",dev_bleu)
+            print("dev_success",dev_success) 
+            print("dev_match",dev_match)            

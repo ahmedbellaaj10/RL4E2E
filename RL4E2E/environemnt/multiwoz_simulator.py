@@ -63,7 +63,7 @@ class MultiwozSimulator(gym.Env):
             spaces.Discrete(self.num_actions),
             *spaces.Tuple(  # parameters
                 tuple(spaces.Box(low=np.zeros(VALID_RATE * MAX_WORDS), high=np.ones(VALID_RATE * MAX_WORDS), dtype=np.float32)
-                      for i in range(self.num_selected_actions))
+                      for i in range(int(self.num_selected_actions)))
             )
         ))
 

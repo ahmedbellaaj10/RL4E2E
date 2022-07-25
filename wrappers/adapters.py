@@ -196,7 +196,7 @@ def get_checkpoint_name(prefix):
 
 def parse_config():
     parser = argparse.ArgumentParser()
-    stream = open("/home/ahmed/RL4E2E/Models/pptod_config.yaml", 'r')
+    stream = open("/home/ahmed/RL4E2E/Models/pptod_config2.0.yaml", 'r')
     args = yaml.load_all(stream, Loader=yaml.FullLoader)
     for doc in args:
         for key, value in doc.items():

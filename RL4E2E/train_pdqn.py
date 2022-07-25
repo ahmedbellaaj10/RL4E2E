@@ -55,52 +55,38 @@ def train(env,args):
     start_time = time.time()
     for i in range(args.episodes):
         state = env.reset()
-        ### squelette de la vraie architecture
-        # extraire le dialogue 
-        dialogue = env.get_dialogue()
-        print("dialogue",dialogue)
-        ### fin
         state = np.array(state, dtype=np.float32, copy=False)
         act, act_param, all_action_parameters = agent.act(state)
         action = pad_action(act, act_param)
-
+        print("action", action)
+        exit()
         episode_reward = 0.
         agent.start_episode()
         done = False
         while not done:
-            turn = env.get_turn(dialogue , int(state[1]))
-            # print("turn :", str(int(state[1]))+' : '+turn)
-            print("turn :", turn)
-            ret = env.step(action, turn ) # ajouter le dialogue comme argument
+            action =(act, act_param)
+            ret = env.step(action)
             next_state, reward, done, _ = ret
             next_state = np.array(next_state, dtype=np.float32, copy=False)
-
             next_act, next_act_param, next_all_action_parameters = agent.act(next_state)
-            next_action = pad_action(next_act, next_act_param)
             agent.step(state, (act, all_action_parameters), reward, next_state,
                        (next_act, next_all_action_parameters), done)
             act, act_param, all_action_parameters = next_act, next_act_param, next_all_action_parameters
-            action = next_action
             state = next_state
-
             episode_reward += reward
-
             if done:
-                # evaluate dialogue , add inform and success to reward
                 break
         agent.end_episode()
-
         returns.append(episode_reward)
         total_reward += episode_reward
-        if i % 100 == 0:
-            print('{0:5s} R:{1:.4f} r100:{2:.4f}'.format(str(i), total_reward / (i + 1), np.array(returns[-100:]).mean()))
+        if i % args.disp_freq == 0:
+            print('{0:5s} R:{1:.4f} r:{2:.4f}'.format(str(i), total_reward / (i + 1), np.array(returns[-args.disp_freq:]).mean()))
     end_time = time.time()
     print("Took %.2f seconds" % (end_time - start_time))
     env.close()
-    agent.save_models(save_dir)
+    agent.save_models(args.save_dir)
     print("Ave. return =", sum(returns) / len(returns))
-    file_name = "returns.npy"
-    np.save(os.path.join(args.save_dir, file_name),returns)  
+    np.save(os.path.join(dir, args.title + "{}".format(str(args.seed))),returns)  
     
 
 def evaluate(env,args):

@@ -1,4 +1,4 @@
-FRAMEWORK_PATH = "/home/ahmed/RL4E2E/RL4E2E"
+FRAMEWORK_PATH = "/home/ahmed/RL4E2E/RL4E2E/"
 PUNKT = '!#$%&()*+,-./:;<=>?@[\]^_{|}~' 
 
 VOWELS = 'aeiuoy'
@@ -143,7 +143,7 @@ WORD_TAG_DICT ={
     "noun" : ["NN", "NNS"] 
 }
 
-MISSPELLED_FILE = FRAMEWORK_PATH + "transformation/" +"misspelled_en.txt"
+MISSPELLED_FILE = FRAMEWORK_PATH + "transformations/" +"misspelled_en.txt"
 
 
 TOP_N = 10  # he number of word similars to be retrieved 

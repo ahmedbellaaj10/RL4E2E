@@ -1,5 +1,5 @@
 ---
-  data_path_prefix : "/home/ahmed/RL4E2E/Models/pptod/data/multiwoz/data"
+  data_path_prefix : "/home/ahmed/RL4E2E/Models/pptod/data/multiwoz2.1/data"
   model_name : "t5-base"
   pretrained_path : "/home/ahmed/RL4E2E/Models/pptod/E2E_TOD/ckpt/base/full_training/"
   output_save_path : "/home/ahmed/RL4E2E/Models/pptod/E2E_TOD/inference_result/base/full_training/"
