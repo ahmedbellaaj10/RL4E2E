@@ -34,7 +34,7 @@
   #   "data_dir" : null
   #   "data_name" : "multiwoz"
   "seed" : 10
-  "gpu" : 1
+  "gpu" : 0
   "valid_metric_name" : "-loss"
   "num_epochs" : 10
   "save_dir" : "/home/ahmed/RL4E2E/Models/GALAXY/outputs/multiwoz2.0/110-35.infer"
@@ -60,10 +60,10 @@
   #   "sort_pool_size" : 0
   "init_checkpoint" : "/home/ahmed/RL4E2E/Models/GALAXY/outputs/multiwoz2.0/110-35/state_epoch_7"
   "model" : "UnifiedTransformer"
-  "num_token_embeddings" : 1
-  "num_pos_embeddings" : 512
-  "num_type_embeddings" : 2
-  "num_turn_embeddings" : 16
+  "num_token_embeddings" : 1024
+  "num_pos_embeddings" : 1024
+  "num_type_embeddings" : 1024
+  "num_turn_embeddings" : 1024
   "num_act" : 20
   "num_heads" : 12
   "num_layers" : 12
@@ -146,4 +146,4 @@
   #   "length_average" : False
   #   "length_penalty" : -1.0
   #   "ignore_unk" : True
-  "use_gpu" : True
+  "use_gpu" : False

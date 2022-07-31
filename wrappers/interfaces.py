@@ -28,14 +28,14 @@ from wrappers.adapters import Hparams , BPETextField , Data , Trainer , Model , 
 from wrappers.adapters import get_checkpoint_name , parse_config
 
 class Interface(ABC):
+    pass
+    # @abstractmethod
+    # def predict_turn(self):
+    #     pass
 
-    @abstractmethod
-    def predict_turn(self):
-        pass
-
-    @abstractmethod
-    def evaluate_turn(self):
-        pass
+    # @abstractmethod
+    # def evaluate_turn(self):
+    #     pass
 
     # @abstractmethod
     # def choose_dialogue(self):
@@ -98,15 +98,14 @@ class GalaxyInterface(Interface):
             data = self.test_data
         idx = random.choice(range(len(data)))
         dial_title = list(data[idx].keys())[0]
-        return idx , dial_title, data[idx]
+        return idx , dial_title, data[idx][dial_title]
 
-    def get_dialogue_length(dial):
-        return len(dial.keys()[0]['log'])
+    def get_dialogue_length(self,dial):
+        return len(dial['log'])
 
     def get_turn(self , dial,  turn_num):
-        dial_title = dial.keys()[0]
         dial_copy = copy.deepcopy(dial)
-        dial_copy[dial_title]["log"] = dial_copy["log"][turn_num:turn_num+1]
+        dial_copy["log"] = dial_copy["log"][turn_num:turn_num+1]
         return dial_copy
 
     def copy_dial_or_turn(self , dial_turn):
@@ -117,18 +116,27 @@ class GalaxyInterface(Interface):
         dial_copy["log"] = dial_copy["log"][:turn_num+1]
         return dial_copy
 
-    def get_utterance(self, dial , turn_num):
-        return dial["log"][turn_num]["user_delex"]
+    def get_utterance_and_utterance_delex(self, dial , turn_num):
+        return dial["log"][turn_num]["user"] , dial["log"][turn_num]["user_delex"]
 
-    def set_utterance(self, dial, turn_num, transformed_sentence):
-        dial["log"][turn_num]["user_delex"] = transformed_sentence
+    def set_utterance_and_utterance_delex(self, dial, turn_num, transformed_sentence , transformed_sentence_delex):
+        if len(dial["log"]) == turn_num and  turn_num>1:
+            dial["log"][turn_num]["user"] = transformed_sentence
+            dial["log"][turn_num]["user_delex"] = transformed_sentence_delex
+        else :
+            dial["log"][0]["user"] = transformed_sentence
+            dial["log"][0]["user_delex"] = transformed_sentence_delex
 
-    def encode(self , dial_name, turn_or_dial):
+    def encode_turn(self , dial_name, turn_or_dial):
+        encoded = self.reader._get_encoded_data(dial_name, turn_or_dial)
+        return encoded
+    
+    def encode_dialogue(self , dial_name, turn_or_dial):
         encoded = self.reader._get_encoded_data(dial_name, turn_or_dial)
         # print("encoded", encoded)
         return encoded
 
-    def predict_turn(self , turn_with_context , idx, pv_turn=None):
+    def predict_turn(self , turn_with_context , pv_turn=None):
         with torch.no_grad():
             
             # for dial_idx, dialog in enumerate(turn_with_context):
@@ -151,8 +159,8 @@ class GalaxyInterface(Interface):
                         try:
                             decoded = self.trainer.decode_generated_act_resp(generated)
                         except ValueError as exception:
-                            self.logger.info(str(exception))
-                            self.logger.info(self.trainer.tokenizer.decode(generated))
+                            # self.logger.info(str(exception))
+                            # self.logger.info(self.trainer.tokenizer.decode(generated))
                             decoded = {'resp': [], 'bspn': [], 'aspn': []}
                     else:  # predict bspn, access db, then generate act and resp
                         outputs = self.trainer.func_model.infer(inputs=batch, start_id=prompt_id,
@@ -185,8 +193,8 @@ class GalaxyInterface(Interface):
                             decoded = self.trainer.decode_generated_act_resp(generated_ar)
                             decoded['bspn'] = bspn_gen
                         except ValueError as exception:
-                            self.logger.info(str(exception))
-                            self.logger.info(self.trainer.tokenizer.decode(generated_ar))
+                            # self.logger.info(str(exception))
+                            # self.logger.info(self.trainer.tokenizer.decode(generated_ar))
                             decoded = {'resp': [], 'bspn': [], 'aspn': []}
 
                     turn['resp_gen'] = decoded['resp']
@@ -208,12 +216,92 @@ class GalaxyInterface(Interface):
             # print('results :', results)
             return turn_output , tmp_dialog_result , pv_turn
 
-    def evaluate_turn(self , turn_output):
+    def predict_dialogue(self , dial , pv_turn=None):
+        result_collection = {}
+        with torch.no_grad():
+            pv_turn = {}
+            for turn_idx, turn in enumerate(dial):
+                    # print(turn)
+                    first_turn = (turn_idx == 0)
+                    inputs, prompt_id = self.reader.convert_turn_eval(turn, pv_turn, first_turn)
+                    batch, batch_size = self.reader.collate_fn_multi_turn(samples=[inputs])
+                    batch = type(batch)(map(lambda kv: (kv[0], self.to_tensor(kv[1])), batch.items()))
+                    if self.reader.use_true_curr_bspn:  # generate act, response
+                        max_len = 60
+                        if not self.reader.use_true_curr_aspn:
+                            max_len = 80
+                        outputs = self.trainer.func_model.infer(inputs=batch, start_id=prompt_id,
+                                                        eos_id=self.reader.eos_r_id, max_gen_len=max_len)
+                        # resp_gen, need to trim previous context
+                        generated = outputs[0].cpu().numpy().tolist()
+                        try:
+                            decoded = self.trainer.decode_generated_act_resp(generated)
+                        except ValueError as exception:
+                            # self.logger.info(str(exception))
+                            # self.logger.info(self.trainer.tokenizer.decode(generated))
+                            decoded = {'resp': [], 'bspn': [], 'aspn': []}
+                    else:  # predict bspn, access db, then generate act and resp
+                        outputs = self.trainer.func_model.infer(inputs=batch, start_id=prompt_id,
+                                                        eos_id=self.reader.eos_b_id, max_gen_len=60)
+                        generated_bs = outputs[0].cpu().numpy().tolist()
+                        bspn_gen = self.trainer.decode_generated_bspn(generated_bs)
+                        # check DB result
+                        if self.reader.use_true_db_pointer:
+                            db = turn['db']
+                        else:
+                            db_result = self.reader.bspan_to_DBpointer(self.trainer.tokenizer.decode(bspn_gen),
+                                                                       turn['turn_domain'])
+                            assert len(turn['db']) == 4
+                            book_result = turn['db'][2]
+                            assert isinstance(db_result, str)
+                            db = [self.reader.sos_db_id] + \
+                                 self.trainer.tokenizer.convert_tokens_to_ids([db_result]) + \
+                                 [book_result] + \
+                                 [self.reader.eos_db_id]
+                            prompt_id = self.reader.sos_a_id
+
+                        prev_input = torch.tensor(bspn_gen + db)
+                        if self.trainer.func_model.use_gpu:
+                            prev_input = prev_input.cuda()
+                        outputs_db = self.trainer.func_model.infer(inputs=batch, start_id=prompt_id,
+                                                           eos_id=self.reader.eos_r_id, max_gen_len=600,
+                                                           prev_input=prev_input)
+                        generated_ar = outputs_db[0].cpu().numpy().tolist()
+                        try:
+                            decoded = self.trainer.decode_generated_act_resp(generated_ar)
+                            decoded['bspn'] = bspn_gen
+                        except ValueError as exception:
+                            # self.logger.info(str(exception))
+                            # self.logger.info(self.trainer.tokenizer.decode(generated_ar))
+                            decoded = {'resp': [], 'bspn': [], 'aspn': []}
+
+                    turn['resp_gen'] = decoded['resp']
+                    turn['bspn_gen'] = turn['bspn'] if self.reader.use_true_curr_bspn else decoded['bspn']
+                    turn['aspn_gen'] = turn['aspn'] if self.reader.use_true_curr_aspn else decoded['aspn']
+                    turn['dspn_gen'] = turn['dspn']
+
+                    pv_turn['labels'] = inputs['labels']  # all true previous context
+                    pv_turn['resp'] = turn['resp'] if self.reader.use_true_prev_resp else decoded['resp']
+                    if not self.reader.use_true_curr_bspn:
+                        pv_turn['bspn'] = turn['bspn'] if self.reader.use_true_prev_bspn else decoded['bspn']
+                        pv_turn['db'] = turn['db'] if self.reader.use_true_prev_bspn else db
+                    pv_turn['aspn'] = turn['aspn'] if self.reader.use_true_prev_aspn else decoded['aspn']
+            tmp_dialog_result = self.reader.inverse_transpose_turn(dial)
+            result_collection.update(tmp_dialog_result)
+        results, _ = self.reader.wrap_result_lm(tmp_dialog_result)
+        bleu, success, match = self.evaluator.validation_metric(results)
+            
+        return results , bleu , success , match
+
+
+    def evaluate(self , turn_output):
         bleu, success, match = self.evaluator.validation_metric(turn_output)
         return bleu, success, match
 
-    def get_dialogue_goal(self, dial_title , data):
-        return list(data[dial_title]['goal'].keys())
+    def get_dialogue_goal(self , data):
+        return list(data['goal'].keys())
+
+    
 
 class PptodInterface(Interface): 
 
@@ -324,8 +412,11 @@ class PptodInterface(Interface):
     def get_turn_with_context(self , dial , num_turn):
         return dial[:num_turn+1]
 
-    def prepare_turn(self , dial):
+    def encode_turn(self , dial):
         return self.data.prepare_dialogue(dial)[-1]
+
+    def encode_dialogue(self , dial):
+        return self.data.prepare_dialogue(dial)
 
     def get_utterance(self , turn):
         return turn["usdx"]
@@ -333,8 +424,6 @@ class PptodInterface(Interface):
     def set_utterance(self , turn , sentence):
         turn["usdx"] = sentence
         return
-
-            
 
     def predict_turn(self , one_inference_turn):
         
@@ -365,7 +454,6 @@ class PptodInterface(Interface):
             formatted.append([element])
         return formatted
 
-
     def evaluate_turn(self , result):
         dev_bleu, dev_success, dev_match = self.evaluator.validation_metric(result)
         return dev_bleu, dev_success, dev_match
@@ -380,15 +468,20 @@ if __name__ == "__main__":
     if interface == "galaxy" :
         x = GalaxyInterface()
         idx , dial_title, dial = x.get_dialogue()
-        print(dial_title)
-        print(x.get_dialogue_goal(dial_title , dial))
-        print("len dial", len(dial))
+        print(dial)
+        print("length", x.get_dialogue_length(dial))
+        print(x.get_dialogue_goal(dial))
+        
         turn = x.get_turn_with_context(dial , 1)
-        print("turn",turn)
-        encoded = x.encode("sng0073",turn)
-        print("encode",encoded)
+        
 
-        turn_output, bleu , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
+        print("turn",turn)
+        
+        encoded = x.encode(dial_title,turn)
+        print("encode",encoded)
+        
+        turn_output , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
+        bleu , success , inform = x.evaluate_turn(turn_output)
         print("----bleu", bleu)
         print("---------------------------------")
         print("----turn_output", turn_output)

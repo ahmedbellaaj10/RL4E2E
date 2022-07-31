@@ -1,6 +1,8 @@
 FRAMEWORK_PATH = "/home/ahmed/RL4E2E/RL4E2E/"
 PUNKT = '!#$%&()*+,-./:;<=>?@[\]^_{|}~' 
 
+TRANSFORMATIONS = ["charinsert", "chardrop", "charreplace", "wordinsert", "worddrop", "worddrop"]
+
 VOWELS = 'aeiuoy'
 
 # adjacent english keyboard (querty) from https://github.com/ybisk/charNMT-noise/blob/master/noise/en.key

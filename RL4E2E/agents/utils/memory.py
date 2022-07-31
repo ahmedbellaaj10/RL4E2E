@@ -24,10 +24,10 @@ class RingBuffer(object):
 
     def append(self, v):
         if self.length < self.maxlen:
-            # We have space, simply increase the length.
+            # print("We have space, simply increase the length.")
             self.length += 1
         elif self.length == self.maxlen:
-            # No space, "remove" the first item.
+            # print("No space, ""remove"" the first item.")
             self.start = (self.start + 1) % self.maxlen
         else:
             # This should never happen.
@@ -50,7 +50,6 @@ def array_min2d(x):
 class Memory(object):
     def __init__(self, limit, observation_shape, action_shape, next_actions=False):
         self.limit = limit
-
         self.states = RingBuffer(limit, shape=observation_shape)
         self.actions = RingBuffer(limit, shape=action_shape)
         self.rewards = RingBuffer(limit, shape=(1,))

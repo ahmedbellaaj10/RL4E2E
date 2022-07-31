@@ -12,7 +12,8 @@ from torch.autograd import Variable
 from RL4E2E.agents.utils.memory import Memory
 from RL4E2E.agents.utils.noise import OrnsteinUhlenbeckActionNoise
 from RL4E2E.environemnt.multiwoz_simulator import MultiwozSimulator
-from RL4E2E.agents.utils.utils import soft_update_target_network, hard_update_target_network
+from RL4E2E.agents.utils.utils import soft_update_target_network, hard_update_target_network , get_actions , get_random_actions
+
 import argparse
 
 
@@ -77,11 +78,11 @@ class QActor(nn.Module):
         self.action_parameter_size = action_parameter_size
         self.activation = activation
         self.layers = nn.ModuleList()
-        inputSize = self.state_size + self.action_parameter_size
-        lastHiddenLayerSize = inputSize
+        inputSize = (self.state_size[0] + self.action_parameter_size ,)
+        lastHiddenLayerSize = inputSize[0]
         if hidden_layers is not None:
             nh = len(hidden_layers)
-            self.layers.append(nn.Linear(inputSize, hidden_layers[0]))
+            self.layers.append(nn.Linear(inputSize[0], hidden_layers[0]))
             for i in range(1, nh):
                 self.layers.append(nn.Linear(hidden_layers[i - 1], hidden_layers[i]))
             lastHiddenLayerSize = hidden_layers[nh - 1]
@@ -97,7 +98,7 @@ class QActor(nn.Module):
         negative_slope = 0.01
         x = torch.cat((state, action_parameters), dim=1)
         num_layers = len(self.layers)
-        for i in range(0, num_layers - 1):
+        for i in range(0, num_layers - 1):  
             if self.activation == "relu":
                 x = F.relu(self.layers[i](x))
             elif self.activation == "leaky_relu":
@@ -123,12 +124,12 @@ class ParamActor(nn.Module):
         lastHiddenLayerSize = inputSize
         if hidden_layers is not None:
             nh = len(hidden_layers)
-            self.layers.append(nn.Linear(inputSize, hidden_layers[0]))
+            self.layers.append(nn.Linear(inputSize[0], hidden_layers[0]))
             for i in range(1, nh):
                 self.layers.append(nn.Linear(hidden_layers[i - 1], hidden_layers[i]))
             lastHiddenLayerSize = hidden_layers[nh - 1]
         self.action_parameters_output_layer = nn.Linear(lastHiddenLayerSize, self.action_parameter_size)
-        self.action_parameters_passthrough_layer = nn.Linear(self.state_size, self.action_parameter_size)
+        self.action_parameters_passthrough_layer = nn.Linear(self.state_size[0], self.action_parameter_size)
         for i in range(0, len(self.layers)):
             if init_type == "kaiming":
                 nn.init.kaiming_normal_(self.layers[i].weight, nonlinearity=activation)
@@ -173,6 +174,7 @@ class PDQNAgent(Agent):
     def __init__(self,
                  observation_space,
                  action_space,
+                 k,
                  actor_class=QActor,
                  actor_kwargs={},
                  actor_param_class=ParamActor,
@@ -202,16 +204,17 @@ class PDQNAgent(Agent):
                  seed=None):
 
         super(PDQNAgent, self).__init__(observation_space, action_space)
+        self.k = k
         self.device = torch.device(device)
-        self.num_actions = self.action_space.spaces[0].n         
-        self.action_parameter_sizes = np.array([self.action_space.spaces[i].shape[0] for i in range(1,self.num_actions+1)])
+        self.num_actions = self.action_space.spaces[0].n   
+        self.action_parameter_sizes = np.array([self.action_space.spaces[i].shape[0] for i in range(1,self.k+1)])
         self.action_parameter_size = int(self.action_parameter_sizes.sum())
         self.action_max = torch.from_numpy(np.ones((self.num_actions,))).float().to(device) 
         self.action_min = -self.action_max.detach() 
         self.action_range = (self.action_max-self.action_min).detach() 
 
-        self.action_parameter_max_numpy = np.concatenate([self.action_space.spaces[i].high for i in range(1,self.num_actions+1)]).ravel() # ravel ~ flatten
-        self.action_parameter_min_numpy = np.concatenate([self.action_space.spaces[i].low for i in range(1,self.num_actions+1)]).ravel()
+        self.action_parameter_max_numpy = np.concatenate([self.action_space.spaces[i].high for i in range(1,self.k+1)]).ravel() # ravel ~ flatten
+        self.action_parameter_min_numpy = np.concatenate([self.action_space.spaces[i].low for i in range(1,self.k+1)]).ravel()
         self.action_parameter_range_numpy = (self.action_parameter_max_numpy - self.action_parameter_min_numpy)
 
         self.action_parameter_max = torch.from_numpy(self.action_parameter_max_numpy).float().to(device)
@@ -250,14 +253,14 @@ class PDQNAgent(Agent):
         self._seed(seed)
         self.use_ornstein_noise = use_ornstein_noise
         self.noise = OrnsteinUhlenbeckActionNoise(self.action_parameter_size, random_machine=self.np_random, mu=0., theta=0.15, sigma=0.0001) 
-        self.replay_memory = Memory(replay_memory_size, observation_space.shape, (1+self.action_parameter_size,), next_actions=False)
-        self.actor = actor_class(self.observation_space.shape[0], self.num_actions, self.action_parameter_size, **actor_kwargs).to(device)
-        self.actor_target = actor_class(self.observation_space.shape[0], self.num_actions, self.action_parameter_size, **actor_kwargs).to(device)
+        self.replay_memory = Memory(replay_memory_size, observation_space, (self.action_parameter_size,), next_actions=False)
+        self.actor = actor_class(self.observation_space, self.num_actions, self.action_parameter_size, **actor_kwargs).to(device)
+        self.actor_target = actor_class(self.observation_space, self.num_actions, self.action_parameter_size, **actor_kwargs).to(device)
         hard_update_target_network(self.actor, self.actor_target) 
         self.actor_target.eval()
 
-        self.actor_param = actor_param_class(self.observation_space.shape[0], self.num_actions, self.action_parameter_size, **actor_param_kwargs).to(device)
-        self.actor_param_target = actor_param_class(self.observation_space.shape[0], self.num_actions, self.action_parameter_size, **actor_param_kwargs).to(device)
+        self.actor_param = actor_param_class(self.observation_space, self.num_actions, self.action_parameter_size, **actor_param_kwargs).to(device)
+        self.actor_param_target = actor_param_class(self.observation_space, self.num_actions, self.action_parameter_size, **actor_param_kwargs).to(device)
         hard_update_target_network(self.actor_param, self.actor_param_target)
         self.actor_param_target.eval()
 
@@ -295,8 +298,6 @@ class PDQNAgent(Agent):
 
     def set_action_parameter_passthrough_weights(self, initial_weights, initial_bias=None):
         passthrough_layer = self.actor_param.action_parameters_passthrough_layer
-        print(initial_weights , "initial_weights.shape ")
-        print(passthrough_layer.weight.data, "passthrough_layer.weight.data.size()")
         assert initial_weights.shape == passthrough_layer.weight.data.size()
         passthrough_layer.weight.data = torch.Tensor(initial_weights).float().to(self.device)
         if initial_bias is not None:
@@ -340,28 +341,48 @@ class PDQNAgent(Agent):
         else:
             self.epsilon = self.epsilon_final
 
+    # def act(self, state):
+    #     with torch.no_grad():
+    #         state = torch.from_numpy(state).to(self.device)
+    #         all_action_parameters = self.actor_param.forward(state)
+    #         # Hausknecht and Stone [2016] use epsilon greedy actions with uniform random action-parameter exploration
+    #         rnd = self.np_random.uniform() 
+    #         if rnd < self.epsilon:
+    #             action = self.np_random.choice(self.num_actions)
+    #             if not self.use_ornstein_noise:
+    #                 all_action_parameters = torch.from_numpy(np.random.uniform(self.action_parameter_min_numpy,
+    #                                                           self.action_parameter_max_numpy))
+    #         else:
+    #             Q_a = self.actor.forward(state.unsqueeze(0), all_action_parameters.unsqueeze(0))
+    #             Q_a = Q_a.detach().cpu().data.numpy()
+    #             action = np.argmax(Q_a)
+    #         all_action_parameters = all_action_parameters.cpu().data.numpy()
+    #         offset = np.array([self.action_parameter_sizes[i] for i in range(action)], dtype=int).sum()
+    #         if self.use_ornstein_noise and self.noise is not None:
+    #             all_action_parameters[offset:offset + self.action_parameter_sizes[action]] += self.noise.sample()[offset:offset + self.action_parameter_sizes[action]]
+    #         action_parameters = all_action_parameters[offset:offset+self.action_parameter_sizes[action]]
+
+    #     return action, action_parameters, all_action_parameters
+
     def act(self, state):
         with torch.no_grad():
             state = torch.from_numpy(state).to(self.device)
             all_action_parameters = self.actor_param.forward(state)
             # Hausknecht and Stone [2016] use epsilon greedy actions with uniform random action-parameter exploration
-            rnd = self.np_random.uniform() 
+            rnd = self.np_random.uniform()
+            # if rnd < self.epsilon: # this is the correct form
             if rnd < self.epsilon:
-                action = self.np_random.choice(self.num_actions)
+                actions = get_random_actions(self.num_actions, self.k)
                 if not self.use_ornstein_noise:
-                    all_action_parameters = torch.from_numpy(np.random.uniform(self.action_parameter_min_numpy,
-                                                              self.action_parameter_max_numpy))
+                    all_action_parameters = torch.from_numpy(np.random.uniform(self.action_parameter_min_numpy,self.action_parameter_max_numpy))
             else:
-                Q_a = self.actor.forward(state.unsqueeze(0), all_action_parameters.unsqueeze(0))
+                Q_a = self.actor.forward(state.unsqueeze(
+                    0), all_action_parameters.unsqueeze(0))
                 Q_a = Q_a.detach().cpu().data.numpy()
-                action = np.argmax(Q_a)
+                actions = get_actions(Q_a[0], self.k)
+            # end of else bloc
             all_action_parameters = all_action_parameters.cpu().data.numpy()
-            offset = np.array([self.action_parameter_sizes[i] for i in range(action)], dtype=int).sum()
-            if self.use_ornstein_noise and self.noise is not None:
-                all_action_parameters[offset:offset + self.action_parameter_sizes[action]] += self.noise.sample()[offset:offset + self.action_parameter_sizes[action]]
-            action_parameters = all_action_parameters[offset:offset+self.action_parameter_sizes[action]]
-
-        return action, action_parameters, all_action_parameters
+        return actions, all_action_parameters
 
     def _zero_index_gradients(self, grad, batch_action_indices, inplace=True):  
         assert grad.shape[0] == batch_action_indices.shape[0]
@@ -409,17 +430,16 @@ class PDQNAgent(Agent):
             grad[~index] *= ((~index).float() * (vals - min_p) / rnge)[~index]
         return grad
 
-    def step(self, state, action, reward, next_state, next_action, terminal, time_steps=1):
-        act, all_action_parameters = action
+    def step(self, state, action, reward, next_state, next_action, terminal):
         self._step += 1
-        # self._add_sample(state, np.concatenate((all_actions.data, all_action_parameters.data)).ravel(), reward, next_state, terminal)
-        self._add_sample(state, np.concatenate(([act],all_action_parameters)).ravel(), reward, next_state, np.concatenate(([next_action[0]],next_action[1])).ravel(), terminal=terminal)
+        self._add_sample(state, action, reward,
+                         next_state, next_action, terminal)
         if self._step >= self.batch_size and self._step >= self.initial_memory_threshold:
             self._optimize_td_loss()
             self.updates += 1
 
     def _add_sample(self, state, action, reward, next_state, next_action, terminal):
-        assert len(action) == 1 + self.action_parameter_size
+        # assert len(action) == 1 + self.action_parameter_size
         self.replay_memory.append(state, action, reward, next_state, terminal=terminal)
 
     def _optimize_td_loss(self): 
@@ -565,7 +585,7 @@ if __name__ == '__main__':
     env = MultiwozSimulator(dataset="multiwoz", version="2.0", model="galaxy")
     initial_params_ = [1., 1., 1.]
     agent = PDQNAgent(
-                       env.observation_space.spaces[0], env.action_space,
+                       env.observation_space, env.action_space,
                        batch_size=args.batch_size,
                        learning_rate_actor=args.learning_rate_actor,
                        learning_rate_actor_param=args.learning_rate_actor_param,
@@ -589,7 +609,8 @@ if __name__ == '__main__':
                                            'squashing_function': False,
                                            'output_layer_init_std': 0.0001,},
                        zero_index_gradients=args.zero_index_gradients,
-                       seed=args.seed)
+                       seed=args.seed
+                       )
     print(env.state)
     # exit()
     act, act_params, all_params = agent.act(np.array(env.state))

@@ -15,7 +15,7 @@ def char_insert(sentence, char_index, char):
 
 
 def get_char(number, min=ord('a'), max=ord('z')):
-    return round((max-min)*number + min)
+    return int((max-min)*number + min)
 
 
 def char_drop(sentence, char_index):

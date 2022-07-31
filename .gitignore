@@ -4,3 +4,4 @@ myvirtualenv/
 PickNPlug/
 internals/
 */__pycache__/*
+output.log
