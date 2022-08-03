@@ -1,5 +1,4 @@
 ---
-
   "do_train" : False
   "do_test" : False
   "do_infer" : True
@@ -7,7 +6,7 @@
   "hparams_file" : null
   "vocab_path" : "/home/ahmed/RL4E2E/Models/GALAXY/model/Bert/vocab.txt"
   "version" : "2.0"
-  "data_root" : "/home/ahmed/RL4E2E/Models/GALAXY"
+  "data_root" : ""
   "data_processed" : "data_for_galaxy_encoded.data.json"
   "filtered" : False
   "max_len" : 1024

@@ -3,8 +3,11 @@ import torch.nn.functional as F
 import numpy as np
 from RL4E2E.environemnt.multiwoz_simulator import MultiwozSimulator
 from RL4E2E.agents.utils.utils import get_random_actions, get_actions
-import argparse
 from RL4E2E.agents.pdqn import QActor, ParamActor, PDQNAgent
+import logging
+import os
+
+
 
 
 class MultiPDQN(PDQNAgent):
@@ -71,6 +74,11 @@ class MultiPDQN(PDQNAgent):
                          seed=seed)
 
         self.top_k = top_k
+        # path = os.path.join("/home/ahmed/RL4E2E/RL4E2E" , os.path.join("epsilone_tracker"))
+        # print("path", path)
+        # if not os.path.exists(path):
+        #     os.makedirs(path)
+        # logging.basicConfig(filename=os.path.join(path,'output.log')  , level=logging.INFO ,format="%(message)s")
 
     def act(self, state):
         with torch.no_grad():

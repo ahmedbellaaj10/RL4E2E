@@ -1,6 +1,8 @@
 """
 Most of the code is from https://github.com/cycraig/MP-DQN
 """
+import logging
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -199,22 +201,22 @@ class PDQNAgent(Agent):
                  weighted=False,
                  average=False,
                  random_weighted=False,
-                 device = 'cpu',
-                #  device="cuda" if torch.cuda.is_available() else "cpu",
+                #  device = 'cpu',
+                 device="cuda" if torch.cuda.is_available() else "cpu",
                  seed=None):
 
         super(PDQNAgent, self).__init__(observation_space, action_space)
-        self.k = k
+        self.top_k = k
         self.device = torch.device(device)
         self.num_actions = self.action_space.spaces[0].n   
-        self.action_parameter_sizes = np.array([self.action_space.spaces[i].shape[0] for i in range(1,self.k+1)])
+        self.action_parameter_sizes = np.array([self.action_space.spaces[i].shape[0] for i in range(1,self.top_k+1)])
         self.action_parameter_size = int(self.action_parameter_sizes.sum())
         self.action_max = torch.from_numpy(np.ones((self.num_actions,))).float().to(device) 
         self.action_min = -self.action_max.detach() 
         self.action_range = (self.action_max-self.action_min).detach() 
 
-        self.action_parameter_max_numpy = np.concatenate([self.action_space.spaces[i].high for i in range(1,self.k+1)]).ravel() # ravel ~ flatten
-        self.action_parameter_min_numpy = np.concatenate([self.action_space.spaces[i].low for i in range(1,self.k+1)]).ravel()
+        self.action_parameter_max_numpy = np.concatenate([self.action_space.spaces[i].high for i in range(1,self.top_k+1)]).ravel() # ravel ~ flatten
+        self.action_parameter_min_numpy = np.concatenate([self.action_space.spaces[i].low for i in range(1,self.top_k+1)]).ravel()
         self.action_parameter_range_numpy = (self.action_parameter_max_numpy - self.action_parameter_min_numpy)
 
         self.action_parameter_max = torch.from_numpy(self.action_parameter_max_numpy).float().to(device)
@@ -371,16 +373,20 @@ class PDQNAgent(Agent):
             # Hausknecht and Stone [2016] use epsilon greedy actions with uniform random action-parameter exploration
             rnd = self.np_random.uniform()
             # if rnd < self.epsilon: # this is the correct form
+            logging.info(f"epsilone {self.epsilon}")
             if rnd < self.epsilon:
-                actions = get_random_actions(self.num_actions, self.k)
+                logging.info("exploration")
+                actions = get_random_actions(self.num_actions, self.top_k)
                 if not self.use_ornstein_noise:
-                    all_action_parameters = torch.from_numpy(np.random.uniform(self.action_parameter_min_numpy,self.action_parameter_max_numpy))
+                    all_action_parameters = torch.from_numpy(np.random.uniform(self.action_parameter_min_numpy,
+                                                                               self.action_parameter_max_numpy))
             else:
+                logging.info("exploration")
                 Q_a = self.actor.forward(state.unsqueeze(
                     0), all_action_parameters.unsqueeze(0))
                 Q_a = Q_a.detach().cpu().data.numpy()
-                actions = get_actions(Q_a[0], self.k)
-            # end of else bloc
+                actions = get_actions(Q_a[0], self.top_k)
+
             all_action_parameters = all_action_parameters.cpu().data.numpy()
         return actions, all_action_parameters
 
@@ -528,8 +534,8 @@ class PDQNAgent(Agent):
         :param prefix: the count of episodes iterated
         :return:
         """
-        torch.save(self.actor.state_dict(), prefix + 'actor.pt')
-        torch.save(self.actor_param.state_dict(), prefix + 'actor_param.pt')
+        torch.save(self.actor.state_dict(), os.path.join(prefix , 'actor.pt'))
+        torch.save(self.actor_param.state_dict(), os.path.join(prefix ,'actor_param.pt'))
         print('Models saved successfully')
 
     def load_models(self, prefix):
@@ -540,8 +546,8 @@ class PDQNAgent(Agent):
         :return:
         """
         # also try load on CPU if no GPU available?
-        self.actor.load_state_dict(torch.load(prefix + 'actor.pt', map_location='cpu'))
-        self.actor_param.load_state_dict(torch.load(prefix + 'actor_param.pt', map_location='cpu'))
+        self.actor.load_state_dict(torch.load(os.path.join(prefix , 'actor.pt'), map_location='cpu'))
+        self.actor_param.load_state_dict(torch.load(os.path.join(prefix , 'actor_param.pt'), map_location='cpu'))
         print('Models loaded successfully')
 
 if __name__ == '__main__':
@@ -611,6 +617,4 @@ if __name__ == '__main__':
                        zero_index_gradients=args.zero_index_gradients,
                        seed=args.seed
                        )
-    print(env.state)
-    # exit()
     act, act_params, all_params = agent.act(np.array(env.state))

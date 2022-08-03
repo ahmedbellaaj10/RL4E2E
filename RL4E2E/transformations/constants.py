@@ -1,7 +1,7 @@
 FRAMEWORK_PATH = "/home/ahmed/RL4E2E/RL4E2E/"
 PUNKT = '!#$%&()*+,-./:;<=>?@[\]^_{|}~' 
 
-TRANSFORMATIONS = ["charinsert", "chardrop", "charreplace", "wordinsert", "worddrop", "worddrop"]
+TRANSFORMATIONS = ["charinsert", "chardrop", "charreplace", "wordinsert", "worddrop", "wordreplace"]
 
 VOWELS = 'aeiuoy'
 

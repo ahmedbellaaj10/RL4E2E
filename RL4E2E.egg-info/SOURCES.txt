@@ -2,9 +2,11 @@ setup.py
 Models/__init__.py
 Models/GALAXY/galaxy/args.py
 PickNPlug/__init__.py
+PickNPlug/pnp.py
+PickNPlug/run.py
 RL4E2E/__init__.py
 RL4E2E/eval_pdqn.py
-RL4E2E/train_pdqn copy.py
+RL4E2E/train_pdqn.py
 RL4E2E.egg-info/PKG-INFO
 RL4E2E.egg-info/SOURCES.txt
 RL4E2E.egg-info/dependency_links.txt

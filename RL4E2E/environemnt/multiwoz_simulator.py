@@ -1,28 +1,29 @@
 from asyncio.log import logger
-import random
+from calendar import c
+import os
 import gym
 from gym import spaces
 from gym.spaces import MultiDiscrete, Discrete
 from gym.utils import seeding
 import numpy as np
-import torch
 import sys
 from RL4E2E.transformations.transformer import CharReplace, CharInsert, CharDrop, WordDrop, WordInsert, WordReplace, CompoundTransformer
 from RL4E2E.transformations.constants import CHAR_DROP_VECTOR_SIZE, CHAR_INSERT_VECTOR_SIZE, CHAR_REPLACE_VECTOR_SIZE, VALID_RATE , MAX_WORDS, WORD_DROP_VECTOR_SIZE, WORD_INSERT_VECTOR_SIZE, WORD_REPLACE_VECTOR_SIZE , TRANSFORMATIONS
+from RL4E2E.utils.constants import PPTOD_PATH,  GALAXY_PATH ,FRAMEWORK_PATH
 from wrappers.interfaces import GalaxyInterface, PptodInterface
 import logging
-sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
-sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
+sys.path.append(GALAXY_PATH)
+sys.path.append(PPTOD_PATH)
 
-logging.basicConfig(filename='output.log' , level=logging.INFO ,format="%(message)s")
+from RL4E2E.utils.scores import bleu 
 
 ACTIONS = {
-    0: WordDrop(),
-    1: WordInsert(),
-    2: WordReplace(),
-    3: CharDrop(),
-    4: CharInsert(),
-    5: CharReplace()
+    0: CharInsert(),
+    1: CharDrop(),
+    2: CharReplace(),
+    3: WordInsert(),
+    4: WordDrop(),
+    5: WordReplace()
 }
 
 
@@ -44,14 +45,19 @@ class MultiwozSimulator(gym.Env):
         try :
             self.model = model
             assert self.model.lower() in ["galaxy" , "pptod"]
+            print("model is", self.model)
         except :
             print(f"Be careful, the model {self.model} is not supported for the moment")
 
         if self.model.lower() == "galaxy":
-            self.interface = GalaxyInterface()
+            self.interface = GalaxyInterface(self.version)
         elif self.model.lower() == "pptod":
-            self.interface = PptodInterface()
+            self.interface = PptodInterface(self.version)
 
+        path = os.path.join(FRAMEWORK_PATH , os.path.join(self.model.lower(),self.version))
+        if not os.path.exists(path):
+            os.makedirs(path)
+        logging.basicConfig(filename=os.path.join(path,'output.log')  , level=logging.INFO ,format="%(message)s")
         self.compound_transfomer = CompoundTransformer(TRANSFORMATIONS)
         self.ACTIONS = self.compound_transfomer.get_actions()
         self.Dialogue_Idx_Order = 0
@@ -98,6 +104,7 @@ class MultiwozSimulator(gym.Env):
         return self.state
 
     def step(self, action):
+        reward = 0
         (actions, all_params) = action 
         logging.info(f"the actions vector is {actions}")
         all_params = np.clip(
@@ -115,8 +122,8 @@ class MultiwozSimulator(gym.Env):
         logging.info(f"before transformation, the sentence was: {utterance}")
         logging.info(f"before transformation, the delexicalized sentence was: {utterance_delex}")
         utterance , utterance_delex , idxs = self.remove_keywords(utterance , utterance_delex)
-        new_utterance = self.compound_transfomer.apply(utterance, action)
-        new_utterance_delex = self.compound_transfomer.apply(utterance_delex , action)
+        new_utterance , trans_rate = self.compound_transfomer.apply(utterance, action)
+        new_utterance_delex , _ = self.compound_transfomer.apply(utterance_delex , action)
         utterance , utterance_delex = self.restore_keywords(utterance , utterance_delex , idxs)
         logging.info(f"after transformation, the sentence was: {utterance}")
         logging.info(f"after transformation, the delexicalized sentence was: {utterance_delex}")
@@ -124,12 +131,16 @@ class MultiwozSimulator(gym.Env):
         self.interface.set_utterance_and_utterance_delex(turn_modified, num_current_turn ,new_utterance, new_utterance_delex)
         turn_encoded , turn_mdified_encoded = self.interface.encode_turn(dialogue_name , turn) , self.interface.encode_turn(dialogue_name , turn_modified)
         turn_predict, _, _ = self.interface.predict_turn(turn_encoded)
+        resp , resp_gen = self.get_resp_and_resp_gen(turn_predict)
+        
         turn_modified_predict, _, _ = self.interface.predict_turn(turn_mdified_encoded)
-        bleu1 ,  success1 , match1 = self.interface.evaluate(turn_predict)
-        bleu2 , success2 , match2 = self.interface.evaluate(turn_modified_predict)
+        resp , resp_gen_modified = self.get_resp_and_resp_gen(turn_modified_predict)
+        bleu1 = bleu(resp , resp_gen)
+        bleu2 = bleu(resp , resp_gen_modified)
+        beta = 0 if trans_rate<0.25 else -1000
         logging.info(f"bleu score for real data was : {bleu1}")
         logging.info(f"bleu score for transformed data was : {bleu2}")
-        reward = 0
+        
         # if cumulate :
         self.interface.set_utterance_and_utterance_delex(dialogue_copy, num_current_turn ,new_utterance, new_utterance_delex)
         # else leave it as it is
@@ -138,17 +149,12 @@ class MultiwozSimulator(gym.Env):
         if self.state[self.Remaining_Turns_Order]==0 :
             done = True
             logger.debug("this dialogue is done")
-            # encoded = self.interface.encode_dialogue(dialogue_name, dialogue_copy)
-            # print("dialogue_copy",dialogue_copy)
-            # print("encoded",encoded)
-            # results , bleu , success , match = self.interface.predict_dialogue(encoded)
-            if round(success2 + match2) == 200:
+            bleu_sc , success , match = self.interface.evaluate(turn_modified_predict)
+            if round(success + match) == 200:
                 reward += 1
             self.state = self.reset()
-        # if bleu1 - bleu2 <= 0 :
-        #     reward += min(-1, (bleu1 - bleu2)/100 )
-        # else :
-        reward += (bleu1 - bleu2)/100
+
+        reward += (bleu1 - bleu2)/trans_rate + beta if trans_rate else (bleu1 - bleu2)
         logger.debug("reward is {reward}" )
         return self.state, reward, done, {}
         
@@ -162,7 +168,7 @@ class MultiwozSimulator(gym.Env):
         delex = utterance_delex.split()
         idxs = {}
         for idx , word in enumerate(delex) :
-            if word.startswith('[') and word.endswith(']'):
+            if word.startswith('[') and word.endswith(']') or word.startswith('<') and word.endswith('>'):
                 idxs.update({idx : [user[idx] , word]})
                 delex.remove(word)
                 user.remove(user[idx])
@@ -179,47 +185,7 @@ class MultiwozSimulator(gym.Env):
         utterance = ' '.join(user)
         utterance_delex = ' '.join(delex)
         return utterance , utterance_delex 
-# if __name__ == "__main__":
-#     interface = "galaxy"
-#     if interface == "galaxy" :
-#         x = GalaxyInterface()
-#         dial = x.get_dialogue("sng0073")
-#         print("len dial", len(dial))
-#         turn = x.get_turn_with_context(dial , 1)
-#         print("turn",turn)
-#         encoded = x.encode("sng0073",turn)
-#         print("encode",encoded)
 
-#         turn_output, bleu , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
-#         print("----bleu", bleu)
-#         print("---------------------------------")
-#         print("----turn_output", turn_output)
-#         print("---------------------------------")
-#         print("----tmp_dialog_result", tmp_dialog_result)
-#         print("---------------------------------")
-#         print("----pv_turn", pv_turn)
-#         print("---------------------------------")
-#     else :
-#         with torch.no_grad():
-#             x = PptodInterface()
-#             data = x.data
-#             dialogue = x.get_dialogue("sng0073" , mode = 'dev')
-#             print("get dialogue done")
-#             turn = x.get_turn_with_context(dialogue , 1)
-#             print("turn with context", turn)
-#             # turn = x.get_turn(dialogue , 1)
-#             # print("turn", turn)
-#             print("get turn done")
-            
-#             # input("fdbdsfbdsgbdgs")
-#             prepared_dial = x.prepare_turn(turn)
-#             print("preparing data done")
-#             print("prepared dial", prepared_dial)
-#             # import time
-#             # time.sleep(10)
-#             dial_result = x.predict_turn(prepared_dial)
-#             print("dial result", dial_result)
-#             dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
-#             print("dev_bleu",dev_bleu)
-#             print("dev_success",dev_success) 
-#             print("dev_match",dev_match)  
+    def get_resp_and_resp_gen(self , pred):
+        return pred[0]['resp'] , pred[0]['resp_gen']
+

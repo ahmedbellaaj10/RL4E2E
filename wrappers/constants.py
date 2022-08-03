@@ -3,8 +3,6 @@ from abc import ABC , abstractmethod
 import logging, time, os
 import subprocess
 
-# from TOD_TEST.Models.GALAXY.
-
 class Config(ABC):
     pass
 
@@ -201,30 +199,30 @@ class UBAR_Config(Config):
         logger.setLevel(logging.INFO)
 
 
-if __name__ == "__main__":
-    subprocess.run(["python", "-u", "interfaces.py", 
-  "--do_infer=true",
-  "--model=${MODEL}" ,
-  "--save_dir=${SAVE_DIR}" ,
- " --data_name=${DATA_NAME}" ,
-  "--data_root=${PROJECT_ROOT}" ,
-  "--vocab_path=${VOCAB_PATH}" ,
-  "--init_checkpoint=${INIT_CHECKPOINT}" ,
-  "--with_joint_act=${WITH_JOINT_ACT}" ,
-  "--use_true_prev_bspn=${USE_TRUE_PREV_BSPN}" ,
-  "--use_true_prev_aspn=${USE_TRUE_PREV_ASPN}" ,
-  "--use_true_prev_resp=${USE_TRUE_PREV_RESP}" ,
-  "--use_true_curr_bspn=${USE_TRUE_CURR_BSPN}" ,
-  "--use_true_curr_aspn=${USE_TRUE_CURR_ASPN} ",
-  "--use_true_db_pointer=${USE_TRUE_DB_POINTER}" ,
-  "--use_all_previous_context=${USE_ALL_PREVIOUS_CONTEXT}" ,
-  "--batch_size=${BATCH_SIZE}" ,
-  "--beam_size=${BEAM_SIZE}" ,
-  "--version=${VERSION}" ,
-  "--gpu=${NUM_GPU}" ,
-  "--seed=${SEED}" ,
-  "--max_len=1024" ,
-  "--max_ctx_turn=20" ,
-  "--num_act=20" ,
-  "--num_type_embeddings=2" ,
-  "--data_processed=data_for_galaxy_encoded.data.json"])
+# if __name__ == "__main__":
+#     subprocess.run(["python", "-u", "interfaces.py", 
+#   "--do_infer=true",
+#   "--model=${MODEL}" ,
+#   "--save_dir=${SAVE_DIR}" ,
+#  " --data_name=${DATA_NAME}" ,
+#   "--data_root=${PROJECT_ROOT}" ,
+#   "--vocab_path=${VOCAB_PATH}" ,
+#   "--init_checkpoint=${INIT_CHECKPOINT}" ,
+#   "--with_joint_act=${WITH_JOINT_ACT}" ,
+#   "--use_true_prev_bspn=${USE_TRUE_PREV_BSPN}" ,
+#   "--use_true_prev_aspn=${USE_TRUE_PREV_ASPN}" ,
+#   "--use_true_prev_resp=${USE_TRUE_PREV_RESP}" ,
+#   "--use_true_curr_bspn=${USE_TRUE_CURR_BSPN}" ,
+#   "--use_true_curr_aspn=${USE_TRUE_CURR_ASPN} ",
+#   "--use_true_db_pointer=${USE_TRUE_DB_POINTER}" ,
+#   "--use_all_previous_context=${USE_ALL_PREVIOUS_CONTEXT}" ,
+#   "--batch_size=${BATCH_SIZE}" ,
+#   "--beam_size=${BEAM_SIZE}" ,
+#   "--version=${VERSION}" ,
+#   "--gpu=${NUM_GPU}" ,
+#   "--seed=${SEED}" ,
+#   "--max_len=1024" ,
+#   "--max_ctx_turn=20" ,
+#   "--num_act=20" ,
+#   "--num_type_embeddings=2" ,
+#   "--data_processed=data_for_galaxy_encoded.data.json"])

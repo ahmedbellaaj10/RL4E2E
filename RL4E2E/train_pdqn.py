@@ -1,14 +1,13 @@
 import os
-import click
+from statistics import mode
 import time
-# import gym
 import numpy as np
 import argparse
-import copy
 from agents.pdqn import PDQNAgent
 from RL4E2E.environemnt.multiwoz_simulator import MultiwozSimulator
-from wrappers.interfaces import GalaxyInterface, PptodInterface
+# from wrappers.interfaces import GalaxyInterface, PptodInterface
 from tqdm import tqdm
+from RL4E2E.utils.constants import FRAMEWORK_PATH
 
 
 def pad_action(acts, act_param, k):
@@ -29,7 +28,6 @@ def pad_action(acts, act_param, k):
             pass 
 
     x = np.reshape(params, (-1,))
-    # print(x.shape)
     return np.reshape(params, (-1,))
 
 def enhance_action(acts, act_param, k):
@@ -56,15 +54,15 @@ def enhance_action(acts, act_param, k):
 
 
 def train(env,args):
-    interface = PptodInterface()
     if args.save_dir:
-        save_dir = os.path.join(args.save_dir, args.title + "{}".format(str(args.seed)))
-        os.makedirs(args.save_dir, exist_ok=True)
+        save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version)
+        os.makedirs(save_dir, exist_ok=True)
     env.seed(args.seed)
     np.random.seed(args.seed)
+    assert env.num_selected_actions==args.num_selected_actions
     agent = PDQNAgent(
                        env.observation_space.shape , env.action_space,
-                       env.num_selected_actions,
+                       k = env.num_selected_actions,
                        batch_size=args.batch_size,
                        learning_rate_actor=args.learning_rate_actor,
                        learning_rate_actor_param=args.learning_rate_actor_param,
@@ -93,13 +91,12 @@ def train(env,args):
     returns = []
     start_time = time.time()
     for i in tqdm(range(args.episodes)):
-        print("new episode")
         state = env.reset()
         state = np.array(state, dtype=np.float32, copy=False)
         act, action_parameters = agent.act(state)
-        action_parameters = pad_action(act, action_parameters , agent.k)
+        action_parameters = pad_action(act, action_parameters , agent.top_k)
         action = (act, action_parameters)
-        all_action_parameters = enhance_action(act, action_parameters , agent.k)
+        all_action_parameters = enhance_action(act, action_parameters , agent.top_k)
         all_action = (act, all_action_parameters)
         episode_reward = 0.
         agent.start_episode()
@@ -111,7 +108,7 @@ def train(env,args):
             next_action = agent.act(next_state)
             ac_n, p_n = next_action
             ac_, p_ = action
-            all_action_parameters = enhance_action(ac_n, p_n , agent.k)
+            all_action_parameters = enhance_action(ac_n, p_n , agent.top_k)
             all_action = (ac_n, all_action_parameters)
             agent.step(state, p_, reward, next_state, p_n, done)
             state = next_state
@@ -122,23 +119,25 @@ def train(env,args):
         returns.append(episode_reward)
         total_reward += episode_reward
         print(f"after episode {i} total_reward is, {total_reward}")
-        # if i % args.disp_freq == 0:
-        # print('{0:5s} R:{1:.4f} r:{2:.4f}'.format(str(i), total_reward / (i + 1), np.array(returns[-args.disp_freq:]).mean()))
+        if i % args.save_freq == 0:
+            os.mkdir(os.path.join(save_dir,"episode_"+str(i+1)))
+            agent.save_models(os.path.join(save_dir,"episode_"+str(i+1)))
     end_time = time.time()
     print("Took %.2f seconds" % (end_time - start_time))
     env.close()
-    agent.save_models(args.save_dir)
+    agent.save_models(save_dir)
     print("Ave. return =", sum(returns) / len(returns))
-    np.save(os.path.join(dir, args.title + "{}".format(str(args.seed))),returns)  
+    np.save(save_dir,returns)  
     
 
 def evaluate(env,args):
     if args.save_dir:
-        save_dir = os.path.join(args.save_dir, args.title + "{}".format(str(args.seed)))
-        os.makedirs(args.save_dir, exist_ok=True)
+        save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version)
+        os.makedirs(save_dir, exist_ok=True)
      
     agent = PDQNAgent(
-                       env.observation_space.shape, env.action_space,
+                       env.observation_space.shape , env.action_space,
+                       env.num_selected_actions,
                        batch_size=args.batch_size,
                        learning_rate_actor=args.learning_rate_actor,
                        learning_rate_actor_param=args.learning_rate_actor_param,
@@ -163,8 +162,7 @@ def evaluate(env,args):
                                            'output_layer_init_std': 0.0001,},
                        zero_index_gradients=args.zero_index_gradients,
                        seed=args.seed)
-    print('in evaluate savedir is :', args.save_dir)
-    agent.load_models(os.path.join(args.save_dir,args.title+"1"))
+    agent.load_models( os.path.join(os.path.join(args.save_dir, args.model),args.version))
     returns = []
     timesteps = []
     for _ in range(args.evaluation_episodes):
@@ -187,14 +185,15 @@ def evaluate(env,args):
 def main(env,args):
     if args.action=="train":
         train(env,args)
-    evaluate(env,args)
+    else :
+        evaluate(env,args)
 
 
 if __name__ == '__main__': 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--seed', default=12, help='Random seed.', type=int)
+    parser.add_argument('--seed', default=512, help='Random seed.', type=int)
     parser.add_argument('--evaluation_episodes', default=10, help='Episodes over which to evaluate after training.', type=int) # episodes = 1000
-    parser.add_argument('--episodes', default=300, help='Number of epsiodes.', type=int) #20000
+    parser.add_argument('--episodes', default=1, help='Number of epsiodes.', type=int) #20000
     parser.add_argument('--batch_size', default=128, help='Minibatch size.', type=int)
     parser.add_argument('--gamma', default=0.9, help='Discount factor.', type=float)
     parser.add_argument('--inverting_gradients', default=True,
@@ -219,13 +218,15 @@ if __name__ == '__main__':
     parser.add_argument('--zero_index_gradients', default=False, help="Whether to zero all gradients for action-parameters not corresponding to the chosen action.", type=bool)
     parser.add_argument('--action_input_layer', default=0, help='Which layer to input action parameters.', type=int)
     parser.add_argument('--layers', default=(128,), help='Duplicate action-parameter inputs.')
-    # parser.add_argument('--save_freq', default=0, help='How often to save models (0 = never).', type=int)
-    parser.add_argument('--save_dir', default="/home/ahmed/RL4E2E/results", help='Output directory.', type=str)
+    parser.add_argument('--save_freq', default=1, help='How often to save models (0 = never).', type=int)
+    parser.add_argument('--save_dir', default=os.path.join(FRAMEWORK_PATH,"results"), help='Output directory.', type=str)
     # parser.add_argument('--render_freq', default=100, help='How often to render / save frames of an episode.', type=int)
-    parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
+    # parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
     parser.add_argument('--action', default="train", help="train or evaluate", type=str)  
     parser.add_argument('--model', default="galaxy", choices=["galaxy", "pptod"], help="the model we want to test", type=str) 
+    parser.add_argument('--version', default="2.0", choices=["2.0", "2.1"], help="the multiwoz version we want to use", type=str) 
+    parser.add_argument('--num_selected_actions', default=3, help="how many actions to apply simultaniously", type=int) 
     args = parser.parse_args()
-    env = MultiwozSimulator(model=args.model)
-    print(args)
+    mode = "dev" if args.action == 'train' else "test" 
+    env = MultiwozSimulator(model=args.model, version=args.version, num_selected_actions=args.num_selected_actions, mode=mode)
     main(env,args)

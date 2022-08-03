@@ -1,12 +1,15 @@
+import imp
 import os
 import random
+from tqdm import tqdm
 import yaml
 import sys
 import json
 import numpy as np
 import json
 from torch.nn.utils import rnn
-sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
+from RL4E2E.utils.constants import FRAMEWORK_PATH, GALAXY_PATH, MODELS_PATH, PPTOD_PATH
+sys.path.append(PPTOD_PATH)
 from reader import MultiWozReader
 import ontology
 import utils
@@ -191,21 +194,60 @@ def get_checkpoint_name(prefix):
     file_names = os.listdir(prefix)
     for name in file_names:
         if name.startswith('epoch'):
-            print (name)
             return name
 
-def parse_config():
+def parse_config(version):
     parser = argparse.ArgumentParser()
-    stream = open("/home/ahmed/RL4E2E/Models/pptod_config2.0.yaml", 'r')
+    parser.add_argument('--seed', default=512, help='Random seed.', type=int)
+    parser.add_argument('--evaluation_episodes', default=10, help='Episodes over which to evaluate after training.', type=int) # episodes = 1000
+    parser.add_argument('--episodes', default=1, help='Number of epsiodes.', type=int) #20000
+    parser.add_argument('--batch_size', default=128, help='Minibatch size.', type=int)
+    parser.add_argument('--gamma', default=0.9, help='Discount factor.', type=float)
+    parser.add_argument('--inverting_gradients', default=True,
+                help='Use inverting gradients scheme instead of squashing function.', type=bool)
+    parser.add_argument('--initial-memory-threshold', default=500, help='Number of transitions required to start learning.',
+                type=int)  # may have been running with 500??
+    parser.add_argument('--use_ornstein_noise', default=True,
+                help='Use Ornstein noise instead of epsilon-greedy with uniform random exploration.', type=bool)
+    parser.add_argument('--replay_memory_size', default=1000, help='Replay memory size in transitions.', type=int)
+    parser.add_argument('--epsilon_steps', default=1000, help='Number of episodes over which to linearly anneal epsilon.', type=int)
+    parser.add_argument('--epsilon_final', default=0.01, help='Final epsilon value.', type=float)
+    parser.add_argument('--tau_actor', default=0.1, help='Soft target network update averaging factor.', type=float)
+    parser.add_argument('--tau-actor_param', default=0.001, help='Soft target network update averaging factor.', type=float) 
+    parser.add_argument('--learning_rate_actor', default=0.001, help="Actor network learning rate.", type=float)
+    parser.add_argument('--learning_rate_actor_param', default=0.0001, help="Critic network learning rate.", type=float)  
+    parser.add_argument('--initialise_params', default=True, help='Initialise action parameters.', type=bool)
+    parser.add_argument('--clip_grad', default=10., help="Parameter gradient clipping limit.", type=float)
+    parser.add_argument('--indexed', default=False, help='Indexed loss function.', type=bool)
+    parser.add_argument('--weighted', default=False, help='Naive weighted loss function.', type=bool)
+    parser.add_argument('--average', default=False, help='Average weighted loss function.', type=bool)
+    parser.add_argument('--random_weighted', default=False, help='Randomly weighted loss function.', type=bool)
+    parser.add_argument('--zero_index_gradients', default=False, help="Whether to zero all gradients for action-parameters not corresponding to the chosen action.", type=bool)
+    parser.add_argument('--action_input_layer', default=0, help='Which layer to input action parameters.', type=int)
+    parser.add_argument('--layers', default=(128,), help='Duplicate action-parameter inputs.')
+    parser.add_argument('--save_freq', default=1, help='How often to save models (0 = never).', type=int)
+    parser.add_argument('--save_dir', default=os.path.join(FRAMEWORK_PATH,"results"), help='Output directory.', type=str)
+    # parser.add_argument('--render_freq', default=100, help='How often to render / save frames of an episode.', type=int)
+    # parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
+    parser.add_argument('--action', default="train", help="train or evaluate", type=str)  
+    parser.add_argument('--model', default="galaxy", choices=["galaxy", "pptod"], help="the model we want to test", type=str) 
+    parser.add_argument('--version', default="2.0", choices=["2.0", "2.1"], help="the multiwoz version we want to use", type=str) 
+    parser.add_argument('--num_selected_actions', default=3, help="how many actions to apply simultaniously", type=int) 
+    if str(version) == "2.0":
+        stream = open(os.path.join(MODELS_PATH,"pptod_config2.0.yaml"), 'r')
+    if str(version) == "2.1":
+        stream = open(os.path.join(MODELS_PATH,"pptod_config2.1.yaml"), 'r')
     args = yaml.load_all(stream, Loader=yaml.FullLoader)
     for doc in args:
         for key, value in doc.items():
-            print ()
             option = "--"+str(key)
             if type(value).__name__ == 'int' :
                 parser.add_argument(option , type=int , help=option , default =value )  
             if type(value).__name__ == 'str' :
-                parser.add_argument(option , type=str , help=option , default =value)
+                if "/" in value:
+                    parser.add_argument(option , type=str , help=option , default =os.path.join(MODELS_PATH,value))
+                else :
+                    parser.add_argument(option , type=str , help=option , default =value)
 
 
     parser.add_argument('--shuffle_mode', type=str, default='shuffle_session_level', 
@@ -266,14 +308,12 @@ class MyMultiWozData(MultiWozData):
         for token in all_sos_token_list:
             one_id = self.tokenizer.convert_tokens_to_ids([token])[0]
             self.all_sos_token_id_list.append(one_id)
-            print (self.tokenizer.convert_ids_to_tokens([one_id]))
-        print (len(self.all_sos_token_id_list))
+
         self.all_eos_token_id_list = []
         for token in all_eos_token_list:
             one_id = self.tokenizer.convert_tokens_to_ids([token])[0]
             self.all_eos_token_id_list.append(one_id)
-            print (self.tokenizer.convert_ids_to_tokens([one_id]))
-        print (len(self.all_eos_token_id_list))
+
 
         bs_prefix_text = 'translate dialogue to belief state:'
         self.bs_prefix_id = self.tokenizer.convert_tokens_to_ids(tokenizer.tokenize(bs_prefix_text))
@@ -311,7 +351,6 @@ class MyMultiWozData(MultiWozData):
 
 
     def build_all_evaluation_batch_list(self, ref_bs, ref_act, ref_db, input_contain_db, eva_batch_size , turn):
-        print("eva_batch_size", eva_batch_size)
         '''
             bool ref_bs: whether using reference belief state to perform generation
                     if with reference belief state, then we also use reference db result
@@ -332,10 +371,6 @@ class MyMultiWozData(MultiWozData):
             all_da_input_id_list.append(one_da_input_id_list)
             all_nlg_input_id_list.append(one_nlg_input_id_list)
             all_parse_dict_list.append(one_parse_dict)
-        print("len(one_bs_input_id_list)", len(all_bs_input_id_list))
-        print("len(one_da_input_id_list)", len(all_da_input_id_list))
-        print("len(one_nlg_input_id_list)", len(all_nlg_input_id_list))
-        print("len(one_parse_dict)", len(all_parse_dict_list))
         assert len(all_bs_input_id_list) == len(all_da_input_id_list)
         assert len(all_da_input_id_list) == len(all_nlg_input_id_list)
         assert len(all_nlg_input_id_list) == len(all_parse_dict_list)
@@ -343,13 +378,7 @@ class MyMultiWozData(MultiWozData):
         da_batch_list = all_da_input_id_list
         nlg_batch_list = all_nlg_input_id_list
         parse_dict_batch_list = all_parse_dict_list
-        print("bs_batch_list",bs_batch_list)
-        print("da_batch_list",da_batch_list)
-        print("nlg_batch_list",nlg_batch_list)
-        print("parse_dict_batch_list",parse_dict_batch_list)
-        print("eva_batch_size", eva_batch_size)
         batch_num = len(bs_batch_list)
-        print("batch_num", batch_num)
         
         final_batch_list = []
         for idx in range(batch_num):
@@ -361,10 +390,8 @@ class MyMultiWozData(MultiWozData):
         return final_batch_list
 
 
-sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
-from pprint import pprint
+sys.path.append(GALAXY_PATH)
 
-# pprint(sys.path)
 from galaxy.data.field import MultiWOZBPETextField
 from galaxy.data.tokenizer import Tokenizer
 from galaxy.utils.db_ops import MultiWozDB

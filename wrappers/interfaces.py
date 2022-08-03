@@ -7,8 +7,10 @@ import sys
 import copy
 import torch
 import torch.nn.functional as F
+from RL4E2E.utils.constants import GALAXY_PATH, MODELS_PATH, PPTOD_PATH
 
-sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
+sys.path.append(GALAXY_PATH)
+print(GALAXY_PATH)
 from galaxy.trainers.trainer import  MultiWOZTrainer 
 from galaxy.models.model_base import ModelBase
 from galaxy.models.generator import Generator
@@ -16,7 +18,7 @@ from galaxy.utils.eval import MultiWOZEvaluator
 
 
 
-sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
+sys.path.append(PPTOD_PATH)
 from config import Config
 from eval import MultiWozEvaluator
 from transformers import T5Tokenizer
@@ -29,36 +31,31 @@ from wrappers.adapters import get_checkpoint_name , parse_config
 
 class Interface(ABC):
     pass
-    # @abstractmethod
-    # def predict_turn(self):
-    #     pass
 
-    # @abstractmethod
-    # def evaluate_turn(self):
-    #     pass
-
-    # @abstractmethod
-    # def choose_dialogue(self):
-    #     pass
 
 class GalaxyInterface(Interface):
     
-    def __init__(self):
-        sys.path.append("/home/ahmed/RL4E2E/Models/GALAXY")
-        stream = open("/home/ahmed/RL4E2E/Models/galaxy_config.yaml", 'r')
+    def __init__(self, version):
+        sys.path.append(GALAXY_PATH)
+        print("GALAXY_PATH",GALAXY_PATH)
+        if str(version) == "2.0":
+            stream = open(os.path.join(MODELS_PATH,"galaxy_config2.0.yaml"), 'r')
+        else :
+            stream = open(os.path.join(MODELS_PATH,"galaxy_config2.1.yaml"), 'r')
         args = yaml.load_all(stream, Loader=yaml.FullLoader)
         for doc in args:
-            textfield = BPETextField(vocab_path=doc["vocab_path"], version=doc["version"],data_root=doc["data_root"],data_processed=doc["data_processed"], filtered=doc["filtered"], max_len=doc["max_len"], min_utt_len=doc["min_utt_len"], max_utt_len=doc["max_utt_len"], min_ctx_turn=doc["min_ctx_turn"], max_ctx_turn=doc["max_ctx_turn"], tokenizer_type=doc["tokenizer_type"])
+            textfield = BPETextField(vocab_path=os.path.join(GALAXY_PATH,doc["vocab_path"]), version=doc["version"],data_root=os.path.join(GALAXY_PATH,doc["data_root"]),data_processed=doc["data_processed"], filtered=doc["filtered"], max_len=doc["max_len"], min_utt_len=doc["min_utt_len"], max_utt_len=doc["max_utt_len"], min_ctx_turn=doc["min_ctx_turn"], max_ctx_turn=doc["max_ctx_turn"], tokenizer_type=doc["tokenizer_type"])
             data = Data(data_dir=doc["data_dir"],data_name=doc["data_name"])
-            trainer = Trainer(seed=doc["seed"], gpu=doc["gpu"], valid_metric_name=doc["valid_metric_name"],num_epochs=doc["num_epochs"], save_dir=doc["save_dir"], token_loss=doc["token_loss"], batch_size=doc["batch_size"] , log_steps=doc["log_steps"], valid_steps=doc["valid_steps"], save_checkpoint=doc["save_checkpoint"], shuffle=doc["shuffle"], sort_pool_size=doc["sort_pool_size"])
-            model_ = Model(init_checkpoint=doc["init_checkpoint"] , model=doc["model"], num_token_embeddings=doc["num_token_embeddings"], num_pos_embeddings=doc["num_pos_embeddings"], num_type_embeddings=doc["num_type_embeddings"], num_turn_embeddings=doc["num_turn_embeddings"], num_act=doc["num_act"], num_heads=doc["num_heads"], num_layers=doc["num_layers"] , hidden_dim=doc["hidden_dim"], padding_idx=doc["padding_idx"], dropout=doc["dropout"], embed_dropout=doc["embed_dropout"], attn_dropout=doc["attn_dropout"], ff_dropout=doc["ff_dropout"], use_discriminator=doc["use_discriminator"], dis_ratio=doc["dis_ratio"], bce_ratio=doc["bce_ratio"],pos_trainable= doc["pos_trainable"], with_joint_act=doc["with_joint_act"], with_rdrop_act=doc["with_rdrop_act"], initializer_range=doc["initializer_range"], lr=doc["lr"], weight_decay=doc["weight_decay"], gradient_accumulation_steps=doc["gradient_accumulation_steps"], warmup_steps=doc["warmup_steps"], max_grad_norm=doc["max_grad_norm"])
+            trainer = Trainer(seed=doc["seed"], gpu=doc["gpu"], valid_metric_name=doc["valid_metric_name"],num_epochs=doc["num_epochs"], save_dir=os.path.join(GALAXY_PATH,doc["save_dir"]), token_loss=doc["token_loss"], batch_size=doc["batch_size"] , log_steps=doc["log_steps"], valid_steps=doc["valid_steps"], save_checkpoint=doc["save_checkpoint"], shuffle=doc["shuffle"], sort_pool_size=doc["sort_pool_size"])
+            model_ = Model(init_checkpoint=os.path.join(GALAXY_PATH,doc["init_checkpoint"]) , model=doc["model"], num_token_embeddings=doc["num_token_embeddings"], num_pos_embeddings=doc["num_pos_embeddings"], num_type_embeddings=doc["num_type_embeddings"], num_turn_embeddings=doc["num_turn_embeddings"], num_act=doc["num_act"], num_heads=doc["num_heads"], num_layers=doc["num_layers"] , hidden_dim=doc["hidden_dim"], padding_idx=doc["padding_idx"], dropout=doc["dropout"], embed_dropout=doc["embed_dropout"], attn_dropout=doc["attn_dropout"], ff_dropout=doc["ff_dropout"], use_discriminator=doc["use_discriminator"], dis_ratio=doc["dis_ratio"], bce_ratio=doc["bce_ratio"],pos_trainable= doc["pos_trainable"], with_joint_act=doc["with_joint_act"], with_rdrop_act=doc["with_rdrop_act"], initializer_range=doc["initializer_range"], lr=doc["lr"], weight_decay=doc["weight_decay"], gradient_accumulation_steps=doc["gradient_accumulation_steps"], warmup_steps=doc["warmup_steps"], max_grad_norm=doc["max_grad_norm"])
             gene = Gene(generator=doc["generator"],min_gen_len=doc["min_gen_len"], max_gen_len=doc["max_gen_len"], use_true_prev_bspn= doc["use_true_prev_bspn"] , use_true_prev_aspn= doc["use_true_prev_aspn"],use_true_db_pointer=doc["use_true_db_pointer"], use_true_prev_resp= doc["use_true_prev_resp"], use_true_curr_bspn=doc["use_true_curr_bspn"], use_true_curr_aspn=doc["use_true_curr_aspn"], use_all_previous_context=doc["use_all_previous_context"], use_true_bspn_for_ctr_eval=doc["use_true_bspn_for_ctr_eval"], use_true_domain_for_ctr_eval=doc["use_true_domain_for_ctr_eval"], beam_size=doc["beam_size"], length_average=doc["length_average"], length_penalty=doc["length_penalty"], ignore_unk=doc["ignore_unk"])
-            self.hparams = Hparams(do_train=doc["do_train"], do_test=doc["do_test"], do_infer=doc["do_infer"], num_infer_batches=doc["num_infer_batches"],hparams_file=doc["hparams_file"], vocab_path=doc["vocab_path"], version=doc["version"],data_root=doc["data_root"],data_processed=doc["data_processed"], filtered=doc["filtered"], max_len=doc["max_len"], min_utt_len=doc["min_utt_len"], max_utt_len=doc["max_utt_len"], min_ctx_turn=doc["min_ctx_turn"], max_ctx_turn=doc["max_ctx_turn"], tokenizer_type=doc["tokenizer_type"], data_dir=doc["data_dir"],data_name=doc["data_name"], seed=doc["seed"], gpu=doc["gpu"], valid_metric_name=doc["valid_metric_name"],num_epochs=doc["num_epochs"], save_dir=doc["save_dir"], token_loss=doc["token_loss"], batch_size=doc["batch_size"] , log_steps=doc["log_steps"], valid_steps=doc["valid_steps"], save_checkpoint=doc["save_checkpoint"], shuffle=doc["shuffle"], sort_pool_size=doc["sort_pool_size"], init_checkpoint=doc["init_checkpoint"] , model=doc["model"],
+            self.hparams = Hparams(do_train=doc["do_train"], do_test=doc["do_test"], do_infer=doc["do_infer"], num_infer_batches=doc["num_infer_batches"],hparams_file=doc["hparams_file"], vocab_path=os.path.join(GALAXY_PATH,doc["vocab_path"]), version=doc["version"],data_root=os.path.join(GALAXY_PATH,doc["data_root"]),data_processed=doc["data_processed"], filtered=doc["filtered"], max_len=doc["max_len"], min_utt_len=doc["min_utt_len"], max_utt_len=doc["max_utt_len"], min_ctx_turn=doc["min_ctx_turn"], max_ctx_turn=doc["max_ctx_turn"], tokenizer_type=doc["tokenizer_type"], data_dir=doc["data_dir"],data_name=doc["data_name"], seed=doc["seed"], gpu=doc["gpu"], valid_metric_name=doc["valid_metric_name"],num_epochs=doc["num_epochs"], save_dir=os.path.join(GALAXY_PATH,doc["save_dir"]), token_loss=doc["token_loss"], batch_size=doc["batch_size"] , log_steps=doc["log_steps"], valid_steps=doc["valid_steps"], save_checkpoint=doc["save_checkpoint"], shuffle=doc["shuffle"], sort_pool_size=doc["sort_pool_size"], init_checkpoint=os.path.join(GALAXY_PATH,doc["init_checkpoint"]) , model=doc["model"],
             num_token_embeddings=doc["num_token_embeddings"], num_pos_embeddings=doc["num_pos_embeddings"], num_type_embeddings=doc["num_type_embeddings"], num_turn_embeddings=doc["num_turn_embeddings"], num_act=doc["num_act"], num_heads=doc["num_heads"], num_layers=doc["num_layers"] , hidden_dim=doc["hidden_dim"], padding_idx=doc["padding_idx"], dropout=doc["dropout"], embed_dropout=doc["embed_dropout"], attn_dropout=doc["attn_dropout"], ff_dropout=doc["ff_dropout"], use_discriminator=doc["use_discriminator"], dis_ratio=doc["dis_ratio"], bce_ratio=doc["bce_ratio"],pos_trainable= doc["pos_trainable"], with_joint_act=doc["with_joint_act"], with_rdrop_act=doc["with_rdrop_act"], initializer_range=doc["initializer_range"], lr=doc["lr"], weight_decay=doc["weight_decay"], gradient_accumulation_steps=doc["gradient_accumulation_steps"], warmup_steps=doc["warmup_steps"], max_grad_norm=doc["max_grad_norm"], generator=doc["generator"],min_gen_len=doc["min_gen_len"], max_gen_len=doc["max_gen_len"], use_true_prev_bspn= doc["use_true_prev_bspn"] , use_true_prev_aspn= doc["use_true_prev_aspn"],use_true_db_pointer=doc["use_true_db_pointer"], use_true_prev_resp= doc["use_true_prev_resp"], use_true_curr_bspn=doc["use_true_curr_bspn"], use_true_curr_aspn=doc["use_true_curr_aspn"], use_all_previous_context=doc["use_all_previous_context"], use_true_bspn_for_ctr_eval=doc["use_true_bspn_for_ctr_eval"], use_true_domain_for_ctr_eval=doc["use_true_domain_for_ctr_eval"], beam_size=doc["beam_size"], length_average=doc["length_average"], length_penalty=doc["length_penalty"], ignore_unk=doc["ignore_unk"], use_gpu=doc["use_gpu"], BPETextField=textfield, Dataset=data, Trainer=trainer, Generator= gene , Model=model_)
-        
+            break
         self.hparams.use_gpu = torch.cuda.is_available() and self.hparams.gpu >= 1
-        self.data = json.load(open("/home/ahmed/RL4E2E/Models/GALAXY/data/multiwoz2.0/data_for_galaxy.json"))
-        os.chdir('/home/ahmed/RL4E2E/Models/GALAXY/')
+        self.data = json.load(open(os.path.join(GALAXY_PATH,"data/multiwoz2.0/data_for_galaxy.json")))
+        os.chdir(GALAXY_PATH)
+        print("self.hparams",self.hparams)
         self.reader = MyMultiWOZBPETextField(self.hparams)
         self.evaluator = MultiWOZEvaluator(reader=self.reader)
         self.hparams.Model.num_token_embeddings = self.reader.vocab_size
@@ -301,11 +298,9 @@ class GalaxyInterface(Interface):
     def get_dialogue_goal(self , data):
         return list(data['goal'].keys())
 
-    
-
 class PptodInterface(Interface): 
 
-    def __init__(self):
+    def __init__(self,version):
         
         if torch.cuda.is_available():
             print ('Cuda is available.')
@@ -319,13 +314,9 @@ class PptodInterface(Interface):
         else:
             pass
     
-        self.args = parse_config()
-        print("args" , self.args)
+        self.args = parse_config(version)
         device = torch.device('cpu')
-        sys.path.append("/home/ahmed/RL4E2E/Models/pptod/E2E_TOD")
-        # from config import Config
-        # from eval import MultiWozEvaluator
-        # from transformers import T5Tokenizer
+        sys.path.append(PPTOD_PATH)
         cfg = Config(self.args.data_path_prefix)
         assert self.args.model_name.startswith('t5')
         
@@ -400,11 +391,23 @@ class PptodInterface(Interface):
         dial_title = data[idx][0]['dial_id']
         return idx , dial_title , data[idx]
 
-    def get_dialogue_length(dial):
+    def get_dialogue_length(self, dial):
         return len(dial)
 
-    def copy_dialogue(self , dial):
+    def copy_dial_or_turn(self , dial):
         return copy.deepcopy(dial)
+
+    def get_utterance_and_utterance_delex(self, dial , turn_num):
+        return dial[turn_num]["user"] , dial[turn_num]["usdx"] 
+
+    def set_utterance_and_utterance_delex(self, turn_modified, num_current_turn ,new_utterance, new_utterance_delex):
+        if len(turn_modified) == num_current_turn and  num_current_turn>1:
+            turn_modified[num_current_turn]["user"] = new_utterance
+            turn_modified[num_current_turn]["user_delex"] = new_utterance_delex
+        else :
+            turn_modified[0]["user"] = new_utterance
+            turn_modified[0]["usdx"] = new_utterance_delex
+                
 
     def get_turn(self , dial , num_turn):
         return [dial[num_turn]]
@@ -412,7 +415,7 @@ class PptodInterface(Interface):
     def get_turn_with_context(self , dial , num_turn):
         return dial[:num_turn+1]
 
-    def encode_turn(self , dial):
+    def encode_turn(self , dial_name , dial):
         return self.data.prepare_dialogue(dial)[-1]
 
     def encode_dialogue(self , dial):
@@ -436,16 +439,13 @@ class PptodInterface(Interface):
             eva_batch_size=self.args.number_of_gpu * self.args.batch_size_per_gpu
             dev_batch_list = self.data.build_all_evaluation_batch_list(ref_bs, ref_act, ref_db, input_contain_db, eva_batch_size , turn )
             dev_batch_num_per_epoch = len(dev_batch_list)
-            print ('Number of evaluation batches is %d' % dev_batch_num_per_epoch)
             dial_result = []
-            # for p_dev_idx in range(dev_batch_num_per_epoch):
             one_inference_batch = self.prepare_one_inference_batch(dev_batch_list)
-            print("one_inference_batch",one_inference_batch)
             dev_batch_parse_dict = e2e_batch_generate(self.model, one_inference_batch, input_contain_db, self.data)
                 
             for item in dev_batch_parse_dict:
                 dial_result.append(item)
-            return dial_result
+            return dial_result , None , None
 
     def prepare_one_inference_batch(self , one_item_batch_list):
         elements = one_item_batch_list[0]
@@ -454,67 +454,67 @@ class PptodInterface(Interface):
             formatted.append([element])
         return formatted
 
-    def evaluate_turn(self , result):
+    def evaluate(self , result):
         dev_bleu, dev_success, dev_match = self.evaluator.validation_metric(result)
         return dev_bleu, dev_success, dev_match
 
     def get_dialogue_goal(self, dial_name):
-        all_goals = json.load(open("../RL4E2E/Models/pptod/data/multiwoz2.0/data/multi-woz-analysis/goal_of_each_dials.json"))
+        all_goals = json.load(open(MODELS_PATH+"pptod/data/multiwoz2.0/data/multi-woz-analysis/goal_of_each_dials.json"))
         return list(all_goals[dial_name+".json"].keys())
 
-if __name__ == "__main__":
-    # interface = "galaxy"
-    interface = "pptod"
-    if interface == "galaxy" :
-        x = GalaxyInterface()
-        idx , dial_title, dial = x.get_dialogue()
-        print(dial)
-        print("length", x.get_dialogue_length(dial))
-        print(x.get_dialogue_goal(dial))
+# if __name__ == "__main__":
+#     # interface = "galaxy"
+#     interface = "pptod"
+#     if interface == "galaxy" :
+#         x = GalaxyInterface()
+#         idx , dial_title, dial = x.get_dialogue()
+#         print(dial)
+#         print("length", x.get_dialogue_length(dial))
+#         print(x.get_dialogue_goal(dial))
         
-        turn = x.get_turn_with_context(dial , 1)
+#         turn = x.get_turn_with_context(dial , 1)
         
 
-        print("turn",turn)
+#         print("turn",turn)
         
-        encoded = x.encode(dial_title,turn)
-        print("encode",encoded)
+#         encoded = x.encode(dial_title,turn)
+#         print("encode",encoded)
         
-        turn_output , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
-        bleu , success , inform = x.evaluate_turn(turn_output)
-        print("----bleu", bleu)
-        print("---------------------------------")
-        print("----turn_output", turn_output)
-        print("---------------------------------")
-        print("----tmp_dialog_result", tmp_dialog_result)
-        print("---------------------------------")
-        print("----pv_turn", pv_turn)
-        print("---------------------------------")
-    else :
-        with torch.no_grad():
-            x = PptodInterface()
-            data = x.data
-            idx , dial_title , dialogue = x.get_dialogue()
-            print("get dialogue done")
-            print(dialogue)
-            exit()
-            print(x.get_dialogue_goal(dial_title))
+#         turn_output , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
+#         bleu , success , inform = x.evaluate_turn(turn_output)
+#         print("----bleu", bleu)
+#         print("---------------------------------")
+#         print("----turn_output", turn_output)
+#         print("---------------------------------")
+#         print("----tmp_dialog_result", tmp_dialog_result)
+#         print("---------------------------------")
+#         print("----pv_turn", pv_turn)
+#         print("---------------------------------")
+#     else :
+#         with torch.no_grad():
+#             x = PptodInterface()
+#             data = x.data
+#             idx , dial_title , dialogue = x.get_dialogue()
+#             print("get dialogue done")
+#             print(dialogue)
+#             exit()
+#             print(x.get_dialogue_goal(dial_title))
 
-            turn = x.get_turn_with_context(dialogue , 1)
-            print("turn with context", turn)
-            # turn = x.get_turn(dialogue , 1)
-            # print("turn", turn)
-            print("get turn done")
+#             turn = x.get_turn_with_context(dialogue , 1)
+#             print("turn with context", turn)
+#             # turn = x.get_turn(dialogue , 1)
+#             # print("turn", turn)
+#             print("get turn done")
             
-            # input("fdbdsfbdsgbdgs")
-            prepared_dial = x.prepare_turn(turn)
-            print("preparing data done")
-            print("prepared dial", prepared_dial)
-            # import time
-            # time.sleep(10)
-            dial_result = x.predict_turn(prepared_dial)
-            print("dial result", dial_result)
-            dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
-            print("dev_bleu",dev_bleu)
-            print("dev_success",dev_success) 
-            print("dev_match",dev_match)            
+#             # input("fdbdsfbdsgbdgs")
+#             prepared_dial = x.prepare_turn(turn)
+#             print("preparing data done")
+#             print("prepared dial", prepared_dial)
+#             # import time
+#             # time.sleep(10)
+#             dial_result = x.predict_turn(prepared_dial)
+#             print("dial result", dial_result)
+#             dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
+#             print("dev_bleu",dev_bleu)
+#             print("dev_success",dev_success) 
+#             print("dev_match",dev_match)            
