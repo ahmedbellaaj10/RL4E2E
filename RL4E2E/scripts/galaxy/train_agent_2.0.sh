@@ -3,7 +3,7 @@
 cd ../../../
 WORK_DIR=$(pwd)
 echo $WORK_DIR
-
+myvirtualenv/bin/activate
 cd RL4E2E
 
 python train_pdqn.py \
