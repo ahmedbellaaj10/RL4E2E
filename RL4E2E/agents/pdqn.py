@@ -13,7 +13,6 @@ import random
 from torch.autograd import Variable
 from RL4E2E.agents.utils.memory import Memory
 from RL4E2E.agents.utils.noise import OrnsteinUhlenbeckActionNoise
-from RL4E2E.environemnt.multiwoz_simulator import MultiwozSimulator
 from RL4E2E.agents.utils.utils import soft_update_target_network, hard_update_target_network , get_actions , get_random_actions
 
 import argparse
@@ -203,10 +202,12 @@ class PDQNAgent(Agent):
                  random_weighted=False,
                 #  device = 'cpu',
                  device="cuda" if torch.cuda.is_available() else "cpu",
-                 seed=None):
+                 seed=None,
+                 log_path = ''):
 
         super(PDQNAgent, self).__init__(observation_space, action_space)
         self.top_k = k
+        logging.basicConfig(level=logging.INFO, filename=log_path)
         self.device = torch.device(device)
         self.num_actions = self.action_space.spaces[0].n   
         self.action_parameter_sizes = np.array([self.action_space.spaces[i].shape[0] for i in range(1,self.top_k+1)])
@@ -330,8 +331,8 @@ class PDQNAgent(Agent):
         """ Continuous action exploration using an Ornstein–Uhlenbeck process. """
         return all_action_parameters.data.numpy() + (self.noise.sample() * self.action_parameter_range_numpy)
 
-    def start_episode(self):
-        pass
+    # def start_episode(self):
+    #     pass
 
     def end_episode(self):
         self._episode += 1
@@ -550,71 +551,71 @@ class PDQNAgent(Agent):
         self.actor_param.load_state_dict(torch.load(os.path.join(prefix , 'actor_param.pt'), map_location='cpu'))
         print('Models loaded successfully')
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--seed', default=1, help='Random seed.', type=int)
-    parser.add_argument('--evaluation_episodes', default=10, help='Episodes over which to evaluate after training.', type=int) # episodes = 1000
-    parser.add_argument('--episodes', default=10, help='Number of epsiodes.', type=int) #20000
-    parser.add_argument('--batch_size', default=128, help='Minibatch size.', type=int)
-    parser.add_argument('--gamma', default=0.9, help='Discount factor.', type=float)
-    parser.add_argument('--inverting_gradients', default=True,
-                help='Use inverting gradients scheme instead of squashing function.', type=bool)
-    parser.add_argument('--initial-memory-threshold', default=500, help='Number of transitions required to start learning.',
-                type=int)  # may have been running with 500??
-    parser.add_argument('--use_ornstein_noise', default=True,
-                help='Use Ornstein noise instead of epsilon-greedy with uniform random exploration.', type=bool)
-    parser.add_argument('--replay_memory_size', default=10000, help='Replay memory size in transitions.', type=int)
-    parser.add_argument('--epsilon_steps', default=1000, help='Number of episodes over which to linearly anneal epsilon.', type=int)
-    parser.add_argument('--epsilon_final', default=0.01, help='Final epsilon value.', type=float)
-    parser.add_argument('--tau_actor', default=0.1, help='Soft target network update averaging factor.', type=float)
-    parser.add_argument('--tau-actor_param', default=0.001, help='Soft target network update averaging factor.', type=float)  # 0.001
-    parser.add_argument('--learning_rate_actor', default=0.001, help="Actor network learning rate.", type=float) # 0.001/0.0001 learns faster but tableaus faster too
-    parser.add_argument('--learning_rate_actor_param', default=0.0001, help="Critic network learning rate.", type=float)  # 0.00001
-    parser.add_argument('--initialise_params', default=True, help='Initialise action parameters.', type=bool)
-    parser.add_argument('--clip_grad', default=10., help="Parameter gradient clipping limit.", type=float)
-    parser.add_argument('--indexed', default=False, help='Indexed loss function.', type=bool)
-    parser.add_argument('--weighted', default=False, help='Naive weighted loss function.', type=bool)
-    parser.add_argument('--average', default=False, help='Average weighted loss function.', type=bool)
-    parser.add_argument('--random_weighted', default=False, help='Randomly weighted loss function.', type=bool)
-    parser.add_argument('--zero_index_gradients', default=False, help="Whether to zero all gradients for action-parameters not corresponding to the chosen action.", type=bool)
-    parser.add_argument('--action_input_layer', default=0, help='Which layer to input action parameters.', type=int)
-    parser.add_argument('--layers', default=(128,), help='Duplicate action-parameter inputs.')
-    parser.add_argument('--save_freq', default=0, help='How often to save models (0 = never).', type=int)
-    parser.add_argument('--save_dir', default="RLTest4chatbot/results/", help='Output directory.', type=str)
-    parser.add_argument('--render_freq', default=100, help='How often to render / save frames of an episode.', type=int)
-    parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
-    parser.add_argument('--disp_freq', default=5, help="When to display results", type=int)  # display results
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--seed', default=1, help='Random seed.', type=int)
+#     parser.add_argument('--evaluation_episodes', default=10, help='Episodes over which to evaluate after training.', type=int) # episodes = 1000
+#     parser.add_argument('--episodes', default=10, help='Number of epsiodes.', type=int) #20000
+#     parser.add_argument('--batch_size', default=128, help='Minibatch size.', type=int)
+#     parser.add_argument('--gamma', default=0.9, help='Discount factor.', type=float)
+#     parser.add_argument('--inverting_gradients', default=True,
+#                 help='Use inverting gradients scheme instead of squashing function.', type=bool)
+#     parser.add_argument('--initial-memory-threshold', default=500, help='Number of transitions required to start learning.',
+#                 type=int)  # may have been running with 500??
+#     parser.add_argument('--use_ornstein_noise', default=True,
+#                 help='Use Ornstein noise instead of epsilon-greedy with uniform random exploration.', type=bool)
+#     parser.add_argument('--replay_memory_size', default=10000, help='Replay memory size in transitions.', type=int)
+#     parser.add_argument('--epsilon_steps', default=1000, help='Number of episodes over which to linearly anneal epsilon.', type=int)
+#     parser.add_argument('--epsilon_final', default=0.01, help='Final epsilon value.', type=float)
+#     parser.add_argument('--tau_actor', default=0.1, help='Soft target network update averaging factor.', type=float)
+#     parser.add_argument('--tau-actor_param', default=0.001, help='Soft target network update averaging factor.', type=float)  # 0.001
+#     parser.add_argument('--learning_rate_actor', default=0.001, help="Actor network learning rate.", type=float) # 0.001/0.0001 learns faster but tableaus faster too
+#     parser.add_argument('--learning_rate_actor_param', default=0.0001, help="Critic network learning rate.", type=float)  # 0.00001
+#     parser.add_argument('--initialise_params', default=True, help='Initialise action parameters.', type=bool)
+#     parser.add_argument('--clip_grad', default=10., help="Parameter gradient clipping limit.", type=float)
+#     parser.add_argument('--indexed', default=False, help='Indexed loss function.', type=bool)
+#     parser.add_argument('--weighted', default=False, help='Naive weighted loss function.', type=bool)
+#     parser.add_argument('--average', default=False, help='Average weighted loss function.', type=bool)
+#     parser.add_argument('--random_weighted', default=False, help='Randomly weighted loss function.', type=bool)
+#     parser.add_argument('--zero_index_gradients', default=False, help="Whether to zero all gradients for action-parameters not corresponding to the chosen action.", type=bool)
+#     parser.add_argument('--action_input_layer', default=0, help='Which layer to input action parameters.', type=int)
+#     parser.add_argument('--layers', default=(128,), help='Duplicate action-parameter inputs.')
+#     parser.add_argument('--save_freq', default=0, help='How often to save models (0 = never).', type=int)
+#     parser.add_argument('--save_dir', default="RLTest4chatbot/results/", help='Output directory.', type=str)
+#     parser.add_argument('--render_freq', default=100, help='How often to render / save frames of an episode.', type=int)
+#     parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
+#     parser.add_argument('--disp_freq', default=5, help="When to display results", type=int)  # display results
 
-    args = parser.parse_args()
-    env = MultiwozSimulator(dataset="multiwoz", version="2.0", model="galaxy")
-    initial_params_ = [1., 1., 1.]
-    agent = PDQNAgent(
-                       env.observation_space, env.action_space,
-                       batch_size=args.batch_size,
-                       learning_rate_actor=args.learning_rate_actor,
-                       learning_rate_actor_param=args.learning_rate_actor_param,
-                       epsilon_steps=args.epsilon_steps,
-                       gamma=args.gamma,
-                       tau_actor=args.tau_actor,
-                       tau_actor_param=args.tau_actor_param,
-                       clip_grad=args.clip_grad,
-                       indexed=args.indexed,
-                       weighted=args.weighted,
-                       average=args.average,
-                       random_weighted=args.random_weighted,
-                       initial_memory_threshold=args.initial_memory_threshold,
-                       use_ornstein_noise=args.use_ornstein_noise,
-                       replay_memory_size=args.replay_memory_size,
-                       epsilon_final=args.epsilon_final,
-                       inverting_gradients=args.inverting_gradients,
-                       actor_kwargs={'hidden_layers': args.layers,
-                                     'action_input_layer': args.action_input_layer,},
-                       actor_param_kwargs={'hidden_layers': args.layers,
-                                           'squashing_function': False,
-                                           'output_layer_init_std': 0.0001,},
-                       zero_index_gradients=args.zero_index_gradients,
-                       seed=args.seed
-                       )
-    act, act_params, all_params = agent.act(np.array(env.state))
+#     args = parser.parse_args()
+#     env = MultiwozSimulator(dataset="multiwoz", version="2.0", model="galaxy")
+#     initial_params_ = [1., 1., 1.]
+#     agent = PDQNAgent(
+#                        env.observation_space, env.action_space,
+#                        batch_size=args.batch_size,
+#                        learning_rate_actor=args.learning_rate_actor,
+#                        learning_rate_actor_param=args.learning_rate_actor_param,
+#                        epsilon_steps=args.epsilon_steps,
+#                        gamma=args.gamma,
+#                        tau_actor=args.tau_actor,
+#                        tau_actor_param=args.tau_actor_param,
+#                        clip_grad=args.clip_grad,
+#                        indexed=args.indexed,
+#                        weighted=args.weighted,
+#                        average=args.average,
+#                        random_weighted=args.random_weighted,
+#                        initial_memory_threshold=args.initial_memory_threshold,
+#                        use_ornstein_noise=args.use_ornstein_noise,
+#                        replay_memory_size=args.replay_memory_size,
+#                        epsilon_final=args.epsilon_final,
+#                        inverting_gradients=args.inverting_gradients,
+#                        actor_kwargs={'hidden_layers': args.layers,
+#                                      'action_input_layer': args.action_input_layer,},
+#                        actor_param_kwargs={'hidden_layers': args.layers,
+#                                            'squashing_function': False,
+#                                            'output_layer_init_std': 0.0001,},
+#                        zero_index_gradients=args.zero_index_gradients,
+#                        seed=args.seed
+#                        )
+#     act, act_params, all_params = agent.act(np.array(env.state))

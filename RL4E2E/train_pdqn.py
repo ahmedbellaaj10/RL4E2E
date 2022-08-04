@@ -1,5 +1,7 @@
+import logging
 import os
 from statistics import mode
+import sys
 import time
 import numpy as np
 import argparse
@@ -53,9 +55,10 @@ def enhance_action(acts, act_param, k):
     return np.reshape(params, (-1,))
 
 
-def train(env,args):
+def train(env,args,log_path):
+    logging.basicConfig(level=logging.INFO, filename=log_path)
     if args.save_dir:
-        save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version)
+        save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version+"k"+str(env.num_selected_actions))
         os.makedirs(save_dir, exist_ok=True)
     env.seed(args.seed)
     np.random.seed(args.seed)
@@ -86,22 +89,29 @@ def train(env,args):
                                            'squashing_function': False,
                                            'output_layer_init_std': 0.0001,},
                        zero_index_gradients=args.zero_index_gradients,
-                       seed=args.seed)
+                       seed=args.seed,
+                       log_path = log_path)
     total_reward = 0.
     returns = []
     start_time = time.time()
     for i in tqdm(range(args.episodes)):
         state = env.reset()
-        state = np.array(state, dtype=np.float32, copy=False)
-        act, action_parameters = agent.act(state)
-        action_parameters = pad_action(act, action_parameters , agent.top_k)
-        action = (act, action_parameters)
-        all_action_parameters = enhance_action(act, action_parameters , agent.top_k)
-        all_action = (act, all_action_parameters)
+        logging.info("we finished state")
         episode_reward = 0.
-        agent.start_episode()
+        logging.info("the reward is reset to 0")
+        # agent.start_episode()
         done = False
+        next_action ,ac_n ,all_action_parameters  = None, None, None
         while not done:
+            if next_action is None:
+                state = np.array(state, dtype=np.float32, copy=False)
+                act, action_parameters = agent.act(state)
+                action_parameters = pad_action(act, action_parameters , agent.top_k)
+                action = (act, action_parameters)
+                all_action_parameters = enhance_action(act, action_parameters , agent.top_k)
+                all_action = (act, all_action_parameters)
+            else :
+                all_action = (ac_n, all_action_parameters)
             ret = env.step(all_action)
             next_state, reward, done, _ = ret
             next_state = np.array(next_state, dtype=np.float32, copy=False)
@@ -130,7 +140,7 @@ def train(env,args):
     np.save(save_dir,returns)  
     
 
-def evaluate(env,args):
+def evaluate(env,args,logger):
     if args.save_dir:
         save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version)
         os.makedirs(save_dir, exist_ok=True)
@@ -182,11 +192,28 @@ def evaluate(env,args):
     return np.array(returns)
 
 
-def main(env,args):
+def main(env,args,log_path):
     if args.action=="train":
-        train(env,args)
+        train(env,args,log_path)
     else :
-        evaluate(env,args)
+        evaluate(env,args,log_path)
+
+# def get_logger(log_path, name="default"):
+#     logger = logging.getLogger(name)
+#     logger.propagate = False
+#     logger.setLevel(logging.INFO)
+
+#     formatter = logging.Formatter("%(message)s")
+
+#     sh = logging.StreamHandler(sys.stdout)
+#     sh.setFormatter(formatter)
+#     logger.addHandler(sh)
+
+#     fh = logging.FileHandler(log_path, mode="w")
+#     fh.setFormatter(formatter)
+#     logger.addHandler(fh)
+
+#     return logger
 
 
 if __name__ == '__main__': 
@@ -225,8 +252,12 @@ if __name__ == '__main__':
     parser.add_argument('--action', default="train", help="train or evaluate", type=str)  
     parser.add_argument('--model', default="galaxy", choices=["galaxy", "pptod"], help="the model we want to test", type=str) 
     parser.add_argument('--version', default="2.0", choices=["2.0", "2.1"], help="the multiwoz version we want to use", type=str) 
-    parser.add_argument('--num_selected_actions', default=3, help="how many actions to apply simultaniously", type=int) 
+    parser.add_argument('--num_selected_actions', default=1, help="how many actions to apply simultaniously", type=int) 
     args = parser.parse_args()
-    mode = "dev" if args.action == 'train' else "test" 
-    env = MultiwozSimulator(model=args.model, version=args.version, num_selected_actions=args.num_selected_actions, mode=mode)
-    main(env,args)
+    mode = "dev" if args.action == 'train' else "test"
+    logging_path = os.path.join(FRAMEWORK_PATH,"results/"+args.model+"/"+args.version)
+    if not os.path.exists(logging_path):
+        os.makedirs(logging_path)
+    log_path = os.path.join(logging_path,"output.log")
+    env = MultiwozSimulator(model=args.model, version=args.version, num_selected_actions=args.num_selected_actions, mode=mode , log_path = log_path)
+    main(env,args,log_path)

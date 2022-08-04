@@ -29,9 +29,10 @@ ACTIONS = {
 
 class MultiwozSimulator(gym.Env):
 
-    def __init__(self , dataset="multiwoz", version="2.0" , model="galaxy", num_selected_actions=3, mode="dev" ):
+    def __init__(self , dataset="multiwoz", version="2.0" , model="galaxy", num_selected_actions=3, mode="dev", log_path = ''):
         self.mode = mode
         self.num_selected_actions = num_selected_actions 
+        logging.basicConfig(level=logging.INFO, filename=log_path)
         try :
             self.dataset = dataset
             assert self.dataset.lower() == "multiwoz"
@@ -50,14 +51,14 @@ class MultiwozSimulator(gym.Env):
             print(f"Be careful, the model {self.model} is not supported for the moment")
 
         if self.model.lower() == "galaxy":
-            self.interface = GalaxyInterface(self.version)
+            self.interface = GalaxyInterface(self.version, log_path)
         elif self.model.lower() == "pptod":
-            self.interface = PptodInterface(self.version)
+            self.interface = PptodInterface(self.version, log_path)
 
         path = os.path.join(FRAMEWORK_PATH , os.path.join(self.model.lower(),self.version))
         if not os.path.exists(path):
             os.makedirs(path)
-        logging.basicConfig(filename=os.path.join(path,'output.log')  , level=logging.INFO ,format="%(message)s")
+        # logging.basicConfig(filename=os.path.join(path,'output.log')  , level=logging.INFO ,format="%(message)s")
         self.compound_transfomer = CompoundTransformer(TRANSFORMATIONS)
         self.ACTIONS = self.compound_transfomer.get_actions()
         self.Dialogue_Idx_Order = 0
@@ -153,9 +154,9 @@ class MultiwozSimulator(gym.Env):
             if round(success + match) == 200:
                 reward += 1
             self.state = self.reset()
-
-        reward += (bleu1 - bleu2)/trans_rate + beta if trans_rate else (bleu1 - bleu2)
-        logger.debug("reward is {reward}" )
+        bleu_diff = bleu1 - bleu2 if bleu1 - bleu2>0 else (bleu1 - bleu2) -10
+        reward += (bleu_diff)/trans_rate + beta if trans_rate else (bleu_diff)
+        logger.info("reward is {reward}" )
         return self.state, reward, done, {}
         
 

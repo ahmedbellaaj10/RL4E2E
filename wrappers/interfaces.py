@@ -28,6 +28,7 @@ from Models.pptod.E2E_TOD.e2e_inference_utlis import e2e_batch_generate
 from wrappers.adapters import Hparams , BPETextField , Data , Trainer , Model , Gene , MyMultiWOZBPETextField, MyMultiWozData
 
 from wrappers.adapters import get_checkpoint_name , parse_config
+import logging
 
 class Interface(ABC):
     pass
@@ -35,14 +36,16 @@ class Interface(ABC):
 
 class GalaxyInterface(Interface):
     
-    def __init__(self, version):
+    def __init__(self, version, log_path):
         sys.path.append(GALAXY_PATH)
         print("GALAXY_PATH",GALAXY_PATH)
         if str(version) == "2.0":
             stream = open(os.path.join(MODELS_PATH,"galaxy_config2.0.yaml"), 'r')
         else :
             stream = open(os.path.join(MODELS_PATH,"galaxy_config2.1.yaml"), 'r')
+        # self.logger = logger
         args = yaml.load_all(stream, Loader=yaml.FullLoader)
+        logging.basicConfig(level=logging.INFO, filename=log_path)
         for doc in args:
             textfield = BPETextField(vocab_path=os.path.join(GALAXY_PATH,doc["vocab_path"]), version=doc["version"],data_root=os.path.join(GALAXY_PATH,doc["data_root"]),data_processed=doc["data_processed"], filtered=doc["filtered"], max_len=doc["max_len"], min_utt_len=doc["min_utt_len"], max_utt_len=doc["max_utt_len"], min_ctx_turn=doc["min_ctx_turn"], max_ctx_turn=doc["max_ctx_turn"], tokenizer_type=doc["tokenizer_type"])
             data = Data(data_dir=doc["data_dir"],data_name=doc["data_name"])
@@ -300,7 +303,7 @@ class GalaxyInterface(Interface):
 
 class PptodInterface(Interface): 
 
-    def __init__(self,version):
+    def __init__(self,version,log_path):
         
         if torch.cuda.is_available():
             print ('Cuda is available.')
@@ -313,7 +316,7 @@ class PptodInterface(Interface):
                 print ('Using single GPU training.')
         else:
             pass
-    
+        logging.basicConfig(level=logging.INFO, filename=log_path)
         self.args = parse_config(version)
         device = torch.device('cpu')
         sys.path.append(PPTOD_PATH)
