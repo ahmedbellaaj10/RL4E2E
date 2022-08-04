@@ -3,5 +3,5 @@ Models/pptod
 myvirtualenv/
 PickNPlug/
 internals/
-__pycache__/
+**/__pycache__/
 RL4E2E/results/*
