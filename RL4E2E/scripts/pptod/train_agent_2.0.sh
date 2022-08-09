@@ -12,5 +12,5 @@ python train_pdqn.py \
     --action=train \
     --model=pptod \
     --version=2.0
-    --num_selected_actions = 1
+    --num_selected_actions=1
     

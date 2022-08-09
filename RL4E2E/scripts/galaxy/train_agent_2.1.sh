@@ -12,4 +12,4 @@ python train_pdqn.py \
     --action=train \
     --model=galaxy \
     --version=2.1 \
-    --num_selected_actions = 1
+    --num_selected_actions=1
