@@ -12,4 +12,5 @@ python train_pdqn.py \
     --action=train \
     --model=galaxy \
     --version=2.0
+    --num_selected_actions = 1
     

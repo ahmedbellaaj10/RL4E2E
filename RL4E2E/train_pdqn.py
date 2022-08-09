@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from statistics import mode
@@ -60,83 +61,106 @@ def train(env,args,log_path):
     if args.save_dir:
         save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version+"k"+str(env.num_selected_actions))
         os.makedirs(save_dir, exist_ok=True)
-    env.seed(args.seed)
-    np.random.seed(args.seed)
-    assert env.num_selected_actions==args.num_selected_actions
-    agent = PDQNAgent(
-                       env.observation_space.shape , env.action_space,
-                       k = env.num_selected_actions,
-                       batch_size=args.batch_size,
-                       learning_rate_actor=args.learning_rate_actor,
-                       learning_rate_actor_param=args.learning_rate_actor_param,
-                       epsilon_steps=args.epsilon_steps,
-                       gamma=args.gamma,
-                       tau_actor=args.tau_actor,
-                       tau_actor_param=args.tau_actor_param,
-                       clip_grad=args.clip_grad,
-                       indexed=args.indexed,
-                       weighted=args.weighted,
-                       average=args.average,
-                       random_weighted=args.random_weighted,
-                       initial_memory_threshold=args.initial_memory_threshold,
-                       use_ornstein_noise=args.use_ornstein_noise,
-                       replay_memory_size=args.replay_memory_size,
-                       epsilon_final=args.epsilon_final,
-                       inverting_gradients=args.inverting_gradients,
-                       actor_kwargs={'hidden_layers': args.layers,
-                                     'action_input_layer': args.action_input_layer,},
-                       actor_param_kwargs={'hidden_layers': args.layers,
-                                           'squashing_function': False,
-                                           'output_layer_init_std': 0.0001,},
-                       zero_index_gradients=args.zero_index_gradients,
-                       seed=args.seed,
-                       log_path = log_path)
-    total_reward = 0.
-    returns = []
-    start_time = time.time()
-    for i in tqdm(range(args.episodes)):
-        state = env.reset()
-        logging.info("we finished state")
-        episode_reward = 0.
-        logging.info("the reward is reset to 0")
-        # agent.start_episode()
-        done = False
-        next_action ,ac_n ,all_action_parameters  = None, None, None
-        while not done:
-            if next_action is None:
-                state = np.array(state, dtype=np.float32, copy=False)
-                act, action_parameters = agent.act(state)
-                action_parameters = pad_action(act, action_parameters , agent.top_k)
-                action = (act, action_parameters)
-                all_action_parameters = enhance_action(act, action_parameters , agent.top_k)
-                all_action = (act, all_action_parameters)
-            else :
+    infos  = []
+    try :
+        env.seed(args.seed)
+        np.random.seed(args.seed)
+        assert env.num_selected_actions==args.num_selected_actions
+        agent = PDQNAgent(
+                        env.observation_space.shape , env.action_space,
+                        k = env.num_selected_actions,
+                        batch_size=args.batch_size,
+                        learning_rate_actor=args.learning_rate_actor,
+                        learning_rate_actor_param=args.learning_rate_actor_param,
+                        epsilon_steps=args.epsilon_steps,
+                        gamma=args.gamma,
+                        tau_actor=args.tau_actor,
+                        tau_actor_param=args.tau_actor_param,
+                        clip_grad=args.clip_grad,
+                        indexed=args.indexed,
+                        weighted=args.weighted,
+                        average=args.average,
+                        random_weighted=args.random_weighted,
+                        initial_memory_threshold=args.initial_memory_threshold,
+                        use_ornstein_noise=args.use_ornstein_noise,
+                        replay_memory_size=args.replay_memory_size,
+                        epsilon_final=args.epsilon_final,
+                        inverting_gradients=args.inverting_gradients,
+                        actor_kwargs={'hidden_layers': args.layers,
+                                        'action_input_layer': args.action_input_layer,},
+                        actor_param_kwargs={'hidden_layers': args.layers,
+                                            'squashing_function': False,
+                                            'output_layer_init_std': 0.0001,},
+                        zero_index_gradients=args.zero_index_gradients,
+                        seed=args.seed,
+                        log_path = log_path)
+        total_reward = 0.
+        returns = []
+        start_time = time.time()
+         
+        for i in tqdm(range(args.episodes)):
+            info = {}
+            state = env.reset()
+            episode_reward = 0.
+            logging.info("the reward is reset to 0")
+            # agent.start_episode()
+            done = False
+            next_action ,ac_n ,all_action_parameters  = None, None, None
+            while not done:
+                turn_info = {}
+                if next_action is None:
+                    state = np.array(state, dtype=np.float32, copy=False)
+                    act, action_parameters = agent.act(state)
+                    action_parameters = pad_action(act, action_parameters , agent.top_k)
+                    action = (act, action_parameters)
+                    all_action_parameters = enhance_action(act, action_parameters , agent.top_k)
+                    all_action = (act, all_action_parameters)
+                else :
+                    all_action = (ac_n, all_action_parameters)
+                info['episode'] = i
+                turn_info['state'] = state
+                info['dialogue'] = env.hidden_state_dial_name
+                ret = env.step(all_action)
+                next_state, reward, done, successful = ret
+                next_state = np.array(next_state, dtype=np.float32, copy=False)
+                next_action = agent.act(next_state)
+                ac_n, p_n = next_action
+                ac_, p_ = action
+                all_action_parameters = enhance_action(ac_n, p_n , agent.top_k)
                 all_action = (ac_n, all_action_parameters)
-            ret = env.step(all_action)
-            next_state, reward, done, _ = ret
-            next_state = np.array(next_state, dtype=np.float32, copy=False)
-            next_action = agent.act(next_state)
-            ac_n, p_n = next_action
-            ac_, p_ = action
-            all_action_parameters = enhance_action(ac_n, p_n , agent.top_k)
-            all_action = (ac_n, all_action_parameters)
-            agent.step(state, p_, reward, next_state, p_n, done)
-            state = next_state
-            episode_reward += reward
-            if done:
-                break
-        agent.end_episode()
-        returns.append(episode_reward)
-        total_reward += episode_reward
-        print(f"after episode {i} total_reward is, {total_reward}")
-        if i % args.save_freq == 0:
-            os.mkdir(os.path.join(save_dir,"episode_"+str(i+1)))
-            agent.save_models(os.path.join(save_dir,"episode_"+str(i+1)))
+                agent.step(state, p_, reward, next_state, p_n, done)
+                state = next_state
+                turn_info['reward'] = reward
+                turn_info['done'] = done
+                episode_reward += reward
+                if done:
+                    info['successful'] = successful
+                    info['episode_reward'] = episode_reward
+                    infos.append(info)
+                    break
+                info['turn'] = turn_info
+                
+            agent.end_episode()
+            returns.append(episode_reward)
+            total_reward += episode_reward
+            logging.info(f"after episode {i} total_reward is, {total_reward}")
+            if i % args.save_freq == 0:
+                os.mkdir(os.path.join(save_dir,"episode_"+str(i+1)))
+                agent.save_models(os.path.join(save_dir,"episode_"+str(i+1)))
+    except Exception:
+        logging.info("exception :",Exception)
+        file = open(os.path.join(save_dir,"infos.json"), "w")
+        json.dump(infos, file, indent=4)
+        file.close()
+        
     end_time = time.time()
-    print("Took %.2f seconds" % (end_time - start_time))
+    file = open(os.path.join(save_dir,"infos.json"), "w")
+    json.dump(infos, file, indent=4)
+    file.close()
+    logging.info("Took %.2f seconds" % (end_time - start_time))
     env.close()
     agent.save_models(save_dir)
-    print("Ave. return =", sum(returns) / len(returns))
+    logging.info("Ave. return =", sum(returns) / len(returns))
     np.save(save_dir,returns)  
     
 

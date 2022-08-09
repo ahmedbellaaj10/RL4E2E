@@ -106,6 +106,7 @@ class MultiwozSimulator(gym.Env):
 
     def step(self, action):
         reward = 0
+        successful = False
         (actions, all_params) = action 
         logging.info(f"the actions vector is {actions}")
         all_params = np.clip(
@@ -152,12 +153,13 @@ class MultiwozSimulator(gym.Env):
             logger.debug("this dialogue is done")
             bleu_sc , success , match = self.interface.evaluate(turn_modified_predict)
             if round(success + match) == 200:
+                successful = True
                 reward += 1
             self.state = self.reset()
         bleu_diff = bleu1 - bleu2 if bleu1 - bleu2>0 else (bleu1 - bleu2) -10
         reward += (bleu_diff)/trans_rate + beta if trans_rate else (bleu_diff)
         logger.info("reward is {reward}" )
-        return self.state, reward, done, {}
+        return self.state, reward, done, successful
         
 
     def seed(self, seed=None):

@@ -4,8 +4,8 @@
   "do_infer" : True
   "num_infer_batches" : null
   "hparams_file" : null
-  "vocab_path" : "/home/ahmed/RL4E2E/Models/GALAXY/model/Bert/vocab.txt"
-  "version" : "2.0"
+  "vocab_path" : "model/Bert/vocab.txt"
+  "version" : "2.1"
   "data_root" : ""
   "data_processed" : "data_for_galaxy_encoded.data.json"
   "filtered" : False
@@ -15,28 +15,13 @@
   "min_ctx_turn" : 1
   "max_ctx_turn" : 20
   "tokenizer_type" : "Bert"
-  # "BPETextField" : 
-  #   "vocab_path" : "/home/ahmed/RL4E2E/Models/GALAXY/model/Bert/vocab.txt"
-  #   "version" : "2.0"
-  #   "data_root" : "/home/ahmed/RL4E2E/Models/GALAXY"
-  #   "data_processed" : "data_for_galaxy_encoded.data.json"
-  #   "filtered" : False
-  #   "max_len" : 1024
-  #   "min_utt_len" : 1
-  #   "max_utt_len" : 50
-  #   "min_ctx_turn" : 1
-  #   "max_ctx_turn" : 20
-  #   "tokenizer_type" : "Bert"
   "data_dir" : null
   "data_name" : "multiwoz"
-  # "Dataset" : 
-  #   "data_dir" : null
-  #   "data_name" : "multiwoz"
   "seed" : 10
   "gpu" : 0
   "valid_metric_name" : "-loss"
   "num_epochs" : 10
-  "save_dir" : "/home/ahmed/RL4E2E/Models/GALAXY/outputs/multiwoz2.0/110-35.infer"
+  "save_dir" : "outputs/multiwoz2.0/110-76.infer"
   "token_loss" : True
   "batch_size" : 1
   "log_steps" : 100
@@ -44,20 +29,7 @@
   "save_checkpoint" : True
   "shuffle" : True
   "sort_pool_size" : 0
-  # "Trainer" : 
-  #   "seed" : 10
-  #   "gpu" : 1
-  #   "valid_metric_name" : "-loss"
-  #   "num_epochs" : 10
-  #   "save_dir" : "/home/ahmed/RL4E2E/Models/GALAXY/outputs/multiwoz2.0/110-35.infer"
-  #   "token_loss" : True
-  #   "batch_size" : 1
-  #   "log_steps" : 100
-  #   "valid_steps" : 2000
-  #   "save_checkpoint" : True
-  #   "shuffle" : True
-  #   "sort_pool_size" : 0
-  "init_checkpoint" : "/home/ahmed/RL4E2E/Models/GALAXY/outputs/multiwoz2.0/110-35/state_epoch_7"
+  "init_checkpoint" : "outputs/multiwoz2.1/110-76/state_epoch_5"
   "model" : "UnifiedTransformer"
   "num_token_embeddings" : 1024
   "num_pos_embeddings" : 1024
@@ -84,34 +56,6 @@
   "gradient_accumulation_steps" : 1
   "warmup_steps" : -1
   "max_grad_norm" : 5.0
-  # "Model" : 
-  #   "init_checkpoint" : "/home/ahmed/RL4E2E/Models/GALAXY/outputs/multiwoz2.0/110-35/state_epoch_7"
-  #   "model" : "UnifiedTransformer"
-  #   "num_token_embeddings" : -1
-  #   "num_pos_embeddings" : 512
-  #   "num_type_embeddings" : 2
-  #   "num_turn_embeddings" : 16
-  #   "num_act" : 20
-  #   "num_heads" : 12
-  #   "num_layers" : 12
-  #   "hidden_dim" : 768
-  #   "padding_idx" : 0
-  #   "dropout" : 0.1
-  #   "embed_dropout" : 0.0
-  #   "attn_dropout" : 0.1
-  #   "ff_dropout" : 0.1
-  #   "use_discriminator" : False
-  #   "dis_ratio" : 1.0
-  #   "bce_ratio" : 1.0
-  #   "pos_trainable" : True
-  #   "with_joint_act" : False
-  #   "with_rdrop_act" : False
-  #   "initializer_range" : 0.02
-  #   "lr" : 0.0001
-  #   "weight_decay" : 0.0
-  #   "gradient_accumulation_steps" : 1
-  #   "warmup_steps" : -1
-  #   "max_grad_norm" : 5.0
   "generator" : "BeamSearch"
   "min_gen_len" : 1
   "max_gen_len" : 30
@@ -128,21 +72,4 @@
   "length_average" : False
   "length_penalty" : -1.0
   "ignore_unk" : True
-  # "Generator" : 
-  #   "generator" : "BeamSearch"
-  #   "min_gen_len" : 1
-  #   "max_gen_len" : 30
-  #   "use_true_prev_bspn" : False
-  #   "use_true_prev_aspn" : False
-  #   "use_true_db_pointer" : False
-  #   "use_true_prev_resp" : False
-  #   "use_true_curr_bspn" : False
-  #   "use_true_curr_aspn" : False
-  #   "use_all_previous_context" : True
-  #   "use_true_bspn_for_ctr_eval" : True
-  #   "use_true_domain_for_ctr_eval" : True
-  #   "beam_size" : 1
-  #   "length_average" : False
-  #   "length_penalty" : -1.0
-  #   "ignore_unk" : True
   "use_gpu" : False
