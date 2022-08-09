@@ -1,4 +1,4 @@
-FRAMEWORK_PATH = "/home/ahmed/RL4E2E/RL4E2E/"
+from RL4E2E.utils.constants import FRAMEWORK_PATH 
 PUNKT = '!#$%&()*+,-./:;<=>?@[\]^_{|}~' 
 
 TRANSFORMATIONS = ["charinsert", "chardrop", "charreplace", "wordinsert", "worddrop", "wordreplace"]
