@@ -1,3 +1,4 @@
+import os
 from RL4E2E.utils.constants import FRAMEWORK_PATH 
 PUNKT = '!#$%&()*+,-./:;<=>?@[\]^_{|}~' 
 
@@ -145,7 +146,7 @@ WORD_TAG_DICT ={
     "noun" : ["NN", "NNS"] 
 }
 
-MISSPELLED_FILE = FRAMEWORK_PATH + "transformations/" +"misspelled_en.txt"
+MISSPELLED_FILE = os.path.join(FRAMEWORK_PATH, "transformations/" +"misspelled_en.txt")
 
 
 TOP_N = 10  # he number of word similars to be retrieved 
