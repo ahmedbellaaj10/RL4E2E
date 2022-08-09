@@ -147,6 +147,9 @@ def train(env,args,log_path):
             if i % args.save_freq == 0:
                 os.mkdir(os.path.join(save_dir,"episode_"+str(i+1)))
                 agent.save_models(os.path.join(save_dir,"episode_"+str(i+1)))
+            tqdm.set_description(f"reward after episode {i} is {episode_reward}")
+            
+
     except Exception:
         logging.info("exception :",Exception)
         file = open(os.path.join(save_dir,"infos.json"), "w")
@@ -269,7 +272,7 @@ if __name__ == '__main__':
     parser.add_argument('--zero_index_gradients', default=False, help="Whether to zero all gradients for action-parameters not corresponding to the chosen action.", type=bool)
     parser.add_argument('--action_input_layer', default=0, help='Which layer to input action parameters.', type=int)
     parser.add_argument('--layers', default=(128,), help='Duplicate action-parameter inputs.')
-    parser.add_argument('--save_freq', default=1, help='How often to save models (0 = never).', type=int)
+    parser.add_argument('--save_freq', default=500, help='How often to save models (0 = never).', type=int)
     parser.add_argument('--save_dir', default=os.path.join(FRAMEWORK_PATH,"results"), help='Output directory.', type=str)
     # parser.add_argument('--render_freq', default=100, help='How often to render / save frames of an episode.', type=int)
     # parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
