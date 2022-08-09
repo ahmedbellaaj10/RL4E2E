@@ -11,5 +11,5 @@ python train_pdqn.py \
     --epsilon_steps=10000 \
     --action=train \
     --model=galaxy \
-    --version=2.1
+    --version=2.1 \
     --num_selected_actions = 1
