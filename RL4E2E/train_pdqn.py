@@ -97,8 +97,8 @@ def train(env,args,log_path):
         total_reward = 0.
         returns = []
         start_time = time.time()
-         
-        for i in tqdm(range(args.episodes)):
+        pbar = tqdm(range(args.episodes))
+        for i in pbar:
             info = {}
             state = env.reset()
             episode_reward = 0.
@@ -148,7 +148,7 @@ def train(env,args,log_path):
                 os.mkdir(os.path.join(save_dir,"episode_"+str(i+1)))
                 agent.save_models(os.path.join(save_dir,"episode_"+str(i+1)))
             message = "reward after episode "+str(i)+" is "+str(total_reward)
-            tqdm.set_description(message)
+            pbar.set_description(message)
             
     except Exception:
         logging.info("exception :",Exception)
