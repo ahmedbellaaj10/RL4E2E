@@ -118,7 +118,7 @@ def train(env,args,log_path):
                 else :
                     all_action = (ac_n, all_action_parameters)
                 info['episode'] = i
-                turn_info['state'] = state
+                turn_info['state'] = str(state)
                 info['dialogue'] = env.hidden_state_dial_name
                 ret = env.step(all_action)
                 next_state, reward, done, successful = ret
@@ -147,9 +147,9 @@ def train(env,args,log_path):
             if i % args.save_freq == 0:
                 os.mkdir(os.path.join(save_dir,"episode_"+str(i+1)))
                 agent.save_models(os.path.join(save_dir,"episode_"+str(i+1)))
-            tqdm.set_description(f"reward after episode {i} is {episode_reward}")
+            message = "reward after episode "+str(i)+" is "+str(total_reward)
+            tqdm.set_description(message)
             
-
     except Exception:
         logging.info("exception :",Exception)
         file = open(os.path.join(save_dir,"infos.json"), "w")
@@ -163,7 +163,7 @@ def train(env,args,log_path):
     logging.info("Took %.2f seconds" % (end_time - start_time))
     env.close()
     agent.save_models(save_dir)
-    logging.info("Ave. return =", sum(returns) / len(returns))
+    logging.info(f"Ave. return = {sum(returns) / len(returns)}")
     np.save(save_dir,returns)  
     
 
