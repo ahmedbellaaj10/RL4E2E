@@ -8,7 +8,7 @@ cd RL4E2E
 
 python train_pdqn.py \
     --episodes=2000 \
-    --epsilon_steps=10000 \
+    --epsilon_steps=2000 \
     --action=train \
     --model=pptod \
     --version=2.0
