@@ -11,6 +11,6 @@ python train_pdqn.py \
     --epsilon_steps=2000 \
     --action=train \
     --model=pptod \
-    --version=2.0
+    --version=2.0 \
     --num_selected_actions=1
     
