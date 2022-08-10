@@ -688,6 +688,9 @@ class CompoundTransformer(Transformer):
             end_idx = start_idx + transformation_obj.get_vector_size()*self.n_hidden_action
             self.transformation_offsets.append((start_idx, end_idx))
             start_idx = end_idx
+        print("self.transformation_offsets", self.transformation_offsets)
+        # exit()
+
 
     def apply(self, sentence, transformation_vectors):
         cum_trans_rate = 0
@@ -703,7 +706,7 @@ class CompoundTransformer(Transformer):
                         action_params,    VALID_RATE, transform.get_vector_size())
                     sentence, rate = transform.apply(sentence, active_params)
                     cum_trans_rate = cum_trans_rate + rate
-
+                    exit()
                 else:  # action is not activated ~ not from top k
                     pass
         except:

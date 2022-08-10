@@ -164,7 +164,7 @@ def construct_dict_file(file: str):
 def get_active_params(params, rate, vector_size):
     hidden_trans = len(params) // vector_size
     active_trans = round(rate * (hidden_trans))
-    active_params = params[:vector_size*active_trans-1]
+    active_params = params[:vector_size*active_trans]
     return active_params
 
 

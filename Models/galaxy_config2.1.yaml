@@ -9,9 +9,9 @@
   "data_root" : ""
   "data_processed" : "data_for_galaxy_encoded.data.json"
   "filtered" : False
-  "max_len" : 1024
+  "max_len" : 2048
   "min_utt_len" : 1
-  "max_utt_len" : 50
+  "max_utt_len" : 2048
   "min_ctx_turn" : 1
   "max_ctx_turn" : 20
   "tokenizer_type" : "Bert"

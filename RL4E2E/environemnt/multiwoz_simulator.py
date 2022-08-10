@@ -55,9 +55,9 @@ class MultiwozSimulator(gym.Env):
         elif self.model.lower() == "pptod":
             self.interface = PptodInterface(self.version, log_path)
 
-        path = os.path.join(FRAMEWORK_PATH , os.path.join(self.model.lower(),self.version))
-        if not os.path.exists(path):
-            os.makedirs(path)
+        # path = os.path.join(FRAMEWORK_PATH , os.path.join(self.model.lower(),self.version))
+        # if not os.path.exists(path):
+        #     os.makedirs(path)
         # logging.basicConfig(filename=os.path.join(path,'output.log')  , level=logging.INFO ,format="%(message)s")
         self.compound_transfomer = CompoundTransformer(TRANSFORMATIONS)
         self.ACTIONS = self.compound_transfomer.get_actions()
@@ -150,7 +150,7 @@ class MultiwozSimulator(gym.Env):
         self.state[self.Remaining_Turns_Order]-=1
         if self.state[self.Remaining_Turns_Order]==0 :
             done = True
-            logger.debug("this dialogue is done")
+            logger.info("this dialogue is done")
             bleu_sc , success , match = self.interface.evaluate(turn_modified_predict)
             if round(success + match) == 200:
                 successful = True
@@ -158,7 +158,7 @@ class MultiwozSimulator(gym.Env):
             self.state = self.reset()
         bleu_diff = bleu1 - bleu2 if bleu1 - bleu2>0 else (bleu1 - bleu2) -10
         reward += (bleu_diff)/trans_rate + beta if trans_rate else (bleu_diff)
-        logger.info("reward is {reward}" )
+        logger.info(f"reward is {reward}")
         return self.state, reward, done, successful
         
 
