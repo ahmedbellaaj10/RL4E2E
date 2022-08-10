@@ -142,8 +142,6 @@ def train(env,args,log_path):
                 infos.append(info)
                 break
             
-
-            print("info", info)
             
         agent.end_episode()
         returns.append(episode_reward)
