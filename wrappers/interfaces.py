@@ -99,10 +99,10 @@ class GalaxyInterface(Interface):
             data = self.dev_data
         else :
             data = self.test_data
-        dial_title = ""
-        while dial_title != "pmul0117": 
-            idx = random.choice(range(len(data)))
-            dial_title = list(data[idx].keys())[0]
+        # dial_title = ""
+        # while dial_title != "pmul0117": 
+        idx = random.choice(range(len(data)))
+        dial_title = list(data[idx].keys())[0]
         return idx , dial_title, data[idx][dial_title]
 
     def get_dialogue_length(self,dial):
