@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from RL4E2E.utils.constants import GALAXY_PATH, MODELS_PATH, PPTOD_PATH
 
 sys.path.append(GALAXY_PATH)
-print(GALAXY_PATH)
+# print(GALAXY_PATH)
 from galaxy.trainers.trainer import  MultiWOZTrainer 
 from galaxy.models.model_base import ModelBase
 from galaxy.models.generator import Generator
@@ -99,8 +99,10 @@ class GalaxyInterface(Interface):
             data = self.dev_data
         else :
             data = self.test_data
-        idx = random.choice(range(len(data)))
-        dial_title = list(data[idx].keys())[0]
+        dial_title = ""
+        while dial_title != "pmul0117": 
+            idx = random.choice(range(len(data)))
+            dial_title = list(data[idx].keys())[0]
         return idx , dial_title, data[idx][dial_title]
 
     def get_dialogue_length(self,dial):

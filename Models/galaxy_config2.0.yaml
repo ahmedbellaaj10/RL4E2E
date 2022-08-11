@@ -31,10 +31,10 @@
   "sort_pool_size" : 0
   "init_checkpoint" : "outputs/multiwoz2.0/110-35/state_epoch_7"
   "model" : "UnifiedTransformer"
-  "num_token_embeddings" : 1024
-  "num_pos_embeddings" : 1024
-  "num_type_embeddings" : 1024
-  "num_turn_embeddings" : 1024
+  "num_token_embeddings" : 2048
+  "num_pos_embeddings" : 2048
+  "num_type_embeddings" : 2048
+  "num_turn_embeddings" : 2048
   "num_act" : 20
   "num_heads" : 12
   "num_layers" : 12
