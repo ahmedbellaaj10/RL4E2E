@@ -80,6 +80,8 @@ class QActor(nn.Module):
         self.activation = activation
         self.layers = nn.ModuleList()
         inputSize = (self.state_size[0] + self.action_parameter_size ,)
+        # print("self.state_size[0]",self.state_size[0])
+        # print("self.action_parameter_size",self.action_parameter_size)
         lastHiddenLayerSize = inputSize[0]
         if hidden_layers is not None:
             nh = len(hidden_layers)
@@ -100,6 +102,7 @@ class QActor(nn.Module):
         x = torch.cat((state, action_parameters), dim=1)
         num_layers = len(self.layers)
         for i in range(0, num_layers - 1):  
+            print(self.layers[i])
             if self.activation == "relu":
                 x = F.relu(self.layers[i](x))
             elif self.activation == "leaky_relu":
@@ -449,14 +452,14 @@ class PDQNAgent(Agent):
         # assert len(action) == 1 + self.action_parameter_size
         self.replay_memory.append(state, action, reward, next_state, terminal=terminal)
 
-    def _optimize_td_loss(self): 
+    def _optimize_td_loss(self):
         if self._step < self.batch_size or self._step < self.initial_memory_threshold:
             return
         states, actions, rewards, next_states, terminals = self.replay_memory.sample(self.batch_size, random_machine=self.np_random)
         states = torch.from_numpy(states).to(self.device)
         actions_combined = torch.from_numpy(actions).to(self.device)  
         actions = actions_combined[:, 0].long()
-        action_parameters = actions_combined[:, 1:]
+        action_parameters = actions_combined
         rewards = torch.from_numpy(rewards).to(self.device).squeeze()
         next_states = torch.from_numpy(next_states).to(self.device)
         terminals = torch.from_numpy(terminals).to(self.device).squeeze()
