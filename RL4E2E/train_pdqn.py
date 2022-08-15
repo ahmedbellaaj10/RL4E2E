@@ -147,8 +147,8 @@ def train(env,args,log_path):
         returns.append(episode_reward)
         total_reward += episode_reward
         logging.info(f"after episode {i} total_reward is, {total_reward}")
-        if i % args.save_freq == 0:
-            os.mkdir(os.path.join(save_dir,"episode_"+str(i+1)))
+        if i != 0 and i % args.save_freq == 0:
+            os.mkdir(os.path.join(save_dir,"episode_"+str(i)))
             agent.save_models(os.path.join(save_dir,"episode_"+str(i+1)))
         message = "reward after episode "+str(i)+" is "+str(total_reward)
         pbar.set_description(message)

@@ -203,8 +203,8 @@ class PDQNAgent(Agent):
                  weighted=False,
                  average=False,
                  random_weighted=False,
-                #  device = 'cpu',
-                 device="cuda" if torch.cuda.is_available() else "cpu",
+                 device = 'cpu',
+                #  device="cuda" if torch.cuda.is_available() else "cpu",
                  seed=None,
                  log_path = ''):
 
