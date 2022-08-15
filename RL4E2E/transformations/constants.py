@@ -2,7 +2,7 @@ import os
 from RL4E2E.utils.constants import FRAMEWORK_PATH 
 PUNKT = '!#$%&()*+,-./:;<=>?@[\]^_{|}~' 
 
-TRANSFORMATIONS = ["charinsert", "chardrop", "charreplace", "wordinsert", "worddrop", "wordreplace"]
+TRANSFORMATIONS = ["wordinsert", "worddrop", "wordreplace", "charinsert", "chardrop", "charreplace"]
 
 VOWELS = 'aeiuoy'
 
