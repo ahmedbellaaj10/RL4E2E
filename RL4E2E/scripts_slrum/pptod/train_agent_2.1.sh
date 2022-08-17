@@ -11,7 +11,7 @@ source /etc/profile.d/modules.sh
 module load anaconda3
 conda activate /usagers4/p117620/anaconda3/envs/rl4e2e
 
-
+cd ../../../
 WORK_DIR=$(pwd)
 # echo $WORK_DIR
 # pip install --no-index -r requirementscc.txt
