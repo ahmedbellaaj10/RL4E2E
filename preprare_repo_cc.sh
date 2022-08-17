@@ -7,5 +7,4 @@ python obtain_downloadables.py
 
 mkdir bert_model
 cd bert_model
-git lfs install
 git clone https://huggingface.co/bert-base-uncased
