@@ -5,9 +5,9 @@ gym==0.24.0+computecanada
 transformers==4.7.0
 nltk==3.5+computecanada
 tqdm==4.60.0+computecanada
-torch==1.10.0+cu102 -f https://download.pytorch.org/whl/torch_stable.html
-torchvision==0.11.0+cu102 -f https://download.pytorch.org/whl/torch_stable.html
-torchaudio==0.10.0 -f https://download.pytorch.org/whl/torch_stable.html
+torch==1.10.0+computecanada
+torchvision==0.11.0+computecanada
+torchaudio==0.10.0+computecanada
 spacy==3.2.2
 regex
 absl-py==1.1.0
