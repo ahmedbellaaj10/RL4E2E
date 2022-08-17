@@ -5,8 +5,6 @@
 #SBATCH --ntasks=1
 #SBATCH --time=168:00:00
 #SBATCH --mem=4096
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:rtx3090:1
 #SBATCH --exclusive
 
 source /etc/profile.d/modules.sh
