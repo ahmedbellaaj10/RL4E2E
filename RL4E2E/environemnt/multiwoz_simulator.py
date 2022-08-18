@@ -159,7 +159,7 @@ class MultiwozSimulator(gym.Env):
         bleu_diff = bleu1 - bleu2 if bleu1 - bleu2>0 else (bleu1 - bleu2) -10
         reward += (bleu_diff)/trans_rate + beta if trans_rate else (bleu_diff)
         logger.info(f"reward is {reward}")
-        return self.state, reward, done, successful
+        return utterance,new_utterance, self.state, reward, trans_rate, done, successful
         
 
     def seed(self, seed=None):

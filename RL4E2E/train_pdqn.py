@@ -123,7 +123,7 @@ def train(env,args,log_path):
             info['dialogue'] = env.hidden_state_dial_name
             info['action'] = all_action
             ret = env.step(all_action)
-            next_state, reward, done, successful = ret
+            utterance,new_utterance,next_state, reward, trans_rate, done, successful = ret
             next_state = np.array(next_state, dtype=np.float32, copy=False)
             next_action = agent.act(next_state)
             ac_n, p_n = next_action
@@ -132,7 +132,10 @@ def train(env,args,log_path):
             all_action = (ac_n, all_action_parameters)
             agent.step(state, p_, reward, next_state, p_n, done)
             state = next_state
+            turn_info['utterance'] = utterance
+            turn_info['new_utterance'] = new_utterance
             turn_info['reward'] = reward
+            turn_info['trans_rate'] = trans_rate
             turn_info['done'] = done
             episode_reward += reward
             info['turn'].append(turn_info)
