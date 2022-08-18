@@ -10,4 +10,4 @@ cd bert_model
 git clone https://huggingface.co/bert-base-uncased
 
 python -m spacy download en_core_web_sm
-python -m gensim.downloader ----download glove-wiki-gigaword-100
+python -m gensim.downloader --download glove-wiki-gigaword-100
