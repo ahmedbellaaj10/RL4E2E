@@ -17,7 +17,7 @@ from RL4E2E.transformations.constants import WORD_DROP_N_TRANS, WORD_INSERT_N_TR
 from RL4E2E.transformations.constants import WORD_INSERT_VECTOR_SIZE, WORD_REPLACE_VECTOR_SIZE, WORD_DROP_VECTOR_SIZE, CHAR_DROP_VECTOR_SIZE, CHAR_INSERT_VECTOR_SIZE, CHAR_REPLACE_VECTOR_SIZE
 from RL4E2E.transformations.constants import CHAR_DROP_MAX_TRANS, WORD_DROP_MAX_TRANS, WORD_INSERT_MAX_TRANS, CHAR_INSERT_MAX_TRANS, CHAR_REPLACE_MAX_TRANS, WORD_REPLACE_MAX_TRANS
 from RL4E2E.transformations.constants import MAX_WORDS, VALID_RATE
-from RL4E2E.utils.constants import FRAMEWORK_PATH
+from RL4E2E.utils.constants import PROJECT_PATH ,FRAMEWORK_PATH
 import logging
 # logging.basicConfig(filename='output.log'  , level=logging.INFO ,format="%(message)s")
 
@@ -358,8 +358,8 @@ class WordInsert(Transformer):
             self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
             self.model = BertForMaskedLM.from_pretrained('bert-base-uncased')
         except Exception:
-            self.tokenizer = BertTokenizer.from_pretrained(os.path.join(FRAMEWORK_PATH,'bert_model/bert-base-uncased'))
-            self.model = BertForMaskedLM.from_pretrained(os.path.join(FRAMEWORK_PATH,'bert_model/bert-base-uncased'))
+            self.tokenizer = BertTokenizer.from_pretrained(os.path.join(PROJECT_PATH,'bert_model/bert-base-uncased'))
+            self.model = BertForMaskedLM.from_pretrained(os.path.join(PROJECT_PATH,'bert_model/bert-base-uncased'))
         self.n_trans = WORD_INSERT_N_TRANS
         self.valid_trans = WORD_INSERT_MAX_TRANS
 
