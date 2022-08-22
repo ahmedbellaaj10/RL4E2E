@@ -358,8 +358,8 @@ class WordInsert(Transformer):
             self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
             self.model = BertForMaskedLM.from_pretrained('bert-base-uncased')
         except Exception:
-            self.tokenizer = BertTokenizer.from_pretrained(os.path.join(PROJECT_PATH,'bert_model/bert-base-uncased'))
-            self.model = BertForMaskedLM.from_pretrained(os.path.join(PROJECT_PATH,'bert_model/bert-base-uncased'))
+            self.tokenizer = BertTokenizer.from_pretrained(os.path.join(PROJECT_PATH,'bert_model/bert-base-uncased') , from_tf=True)
+            self.model = BertForMaskedLM.from_pretrained(os.path.join(PROJECT_PATH,'bert_model/bert-base-uncased'), from_tf=True)
         self.n_trans = WORD_INSERT_N_TRANS
         self.valid_trans = WORD_INSERT_MAX_TRANS
 
