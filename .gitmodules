@@ -2,3 +2,5 @@
 	ignore = untracked
 [submodule "Models/pptod"]
 	ignore = untracked
+[submodule "bert-model/bert-base-uncased"]
+	ignore = untracked

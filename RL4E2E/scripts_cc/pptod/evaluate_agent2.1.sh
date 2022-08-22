@@ -15,8 +15,8 @@ pip install --no-index -r requirementscc.txt
 
 cd RL4E2E
 
-python -m spacy download en_core_web_sm
-python -m gensim.downloader --download glove-wiki-gigaword-100
+# python -m spacy download en_core_web_sm
+# python -m gensim.downloader --download glove-wiki-gigaword-100
 
 python train_pdqn.py \
     --episodes=2000 \
