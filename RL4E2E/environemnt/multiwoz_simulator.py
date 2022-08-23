@@ -18,12 +18,12 @@ sys.path.append(PPTOD_PATH)
 from RL4E2E.utils.scores import bleu 
 
 ACTIONS = {
-    0: CharInsert(),
-    1: CharDrop(),
-    2: CharReplace(),
-    3: WordInsert(),
-    4: WordDrop(),
-    5: WordReplace()
+    0: "WordInsert",
+    1: "WordDrop",
+    2: "WordReplace",
+    3: "CharInsert",
+    4: "WordDrop",
+    5: "WordReplace"
 }
 
 
@@ -109,6 +109,9 @@ class MultiwozSimulator(gym.Env):
         successful = False
         (actions, all_params) = action 
         logging.info(f"the actions vector is {actions}")
+        for i,k in zip(actions[0::2], actions[1::2]):
+            if k != 0.0:
+                logging.info(f"the action {ACTIONS[i]} is choosen")
         all_params = np.clip(
             all_params, a_min=np.zeros(len(all_params), dtype="float"), a_max=np.ones(len(all_params), dtype = "float"))
         logging.info(f"the params vector is {all_params}")
@@ -156,7 +159,7 @@ class MultiwozSimulator(gym.Env):
                 successful = True
                 reward += 1
             self.state = self.reset()
-        bleu_diff = bleu1 - bleu2 if bleu1 - bleu2>0 else (bleu1 - bleu2) -10
+        bleu_diff = bleu1 - bleu2 if bleu1 - bleu2>0 else (bleu1 - bleu2) -100
         reward += (bleu_diff)/trans_rate + beta if trans_rate else (bleu_diff)
         logger.info(f"reward is {reward}")
         return utterance,new_utterance, self.state, reward, trans_rate, done, successful
@@ -172,9 +175,17 @@ class MultiwozSimulator(gym.Env):
         idxs = {}
         for idx , word in enumerate(delex) :
             if word.startswith('[') and word.endswith(']') or word.startswith('<') and word.endswith('>'):
-                idxs.update({idx : [user[idx] , word]})
-                delex.remove(word)
+                kw = user[idx]
                 user.remove(user[idx])
+                try :
+                    while user[idx] != delex[idx+1]:
+                        kw = kw+" "+user[idx]
+                        user.remove(user[idx])
+                except :
+                    pass
+                idxs.update({idx : [kw , word]})
+                delex.remove(word)
+                
         utterance = ' '.join(user)
         utterance_delex = ' '.join(delex)
         return utterance , utterance_delex , idxs
@@ -183,6 +194,7 @@ class MultiwozSimulator(gym.Env):
         user = utterance.split(' ')
         delex = utterance_delex.split(' ')
         for key, value in idxs.items():
+            print(key , value[0], value[1])
             user.insert(key, value[0])
             delex.insert(key, value[1])
         utterance = ' '.join(user)

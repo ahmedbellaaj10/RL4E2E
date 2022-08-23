@@ -9,9 +9,8 @@ nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
-# import tensorflow.compat.v1 as tf
 import gensim.downloader as api
-from RL4E2E.transformations.helpers import char_insert, char_replace, get_char, char_repeat, char_drop, char_swap, word_insert, word_piece_insert, word_drop, word_replace, word_swap, get_synonyms, construct_dict_file, get_active_params
+from RL4E2E.transformations.helpers import char_insert, char_replace, get_char, char_repeat, char_drop, char_swap, jaccard_modif_rate, nltk_modif, word_insert, word_piece_insert, word_drop, word_replace, word_swap, get_synonyms, construct_dict_file, get_active_params
 from RL4E2E.transformations.constants import DIACTIRICS, PUNKT, VOWELS, ADJACENT_AZERTY, ADJACENT_QUERTY, EMOTICONS, MISSPELLED_FILE, TOP_N, WORD_TAG_DICT
 from RL4E2E.transformations.constants import WORD_DROP_N_TRANS, WORD_INSERT_N_TRANS, WORD_REPLACE_N_TRANS, CHAR_DROP_N_TRANS, CHAR_INSERT_N_TRANS, CHAR_REPLACE_N_TRANS
 from RL4E2E.transformations.constants import WORD_INSERT_VECTOR_SIZE, WORD_REPLACE_VECTOR_SIZE, WORD_DROP_VECTOR_SIZE, CHAR_DROP_VECTOR_SIZE, CHAR_INSERT_VECTOR_SIZE, CHAR_REPLACE_VECTOR_SIZE
@@ -48,6 +47,12 @@ class Transformer(ABC):
     @abstractmethod
     def get_vector_size(self):
         pass
+
+    # def get_changed_words(s1,s2):
+    #     indices = {}
+    #     sen1 , sen2 = s1.split(), s2.split()
+    #     for i , s in enumerate(sen1):
+
 
 
 class CharInsert(Transformer):
@@ -403,7 +408,6 @@ class WordInsert(Transformer):
                 if (trans_index == 0):  # insert a word using a pre-trained model
                     sentence = word_piece_insert(
                         sentence, word_index, self.model, self.tokenizer)
-
                 if (trans_index == 1):  # insert a stop word
                     stop_word_index = transformation_vectors[i *
                                                              self.vector_size+2]
@@ -411,13 +415,11 @@ class WordInsert(Transformer):
                         stop_word_index * len(self.stop_words)) - 1
                     stop_word = self.stop_words[stop_word_index]
                     sentence = word_insert(sentence, word_index, stop_word)
-
                 if (trans_index == 2):  # insert an emoji
                     emoji_index = transformation_vectors[i*self.vector_size+2]
                     emoji_index = round(emoji_index * len(self.emoji)) - 1
                     emoji = self.emoji[emoji_index]
                     sentence = word_insert(sentence, word_index, emoji)
-
                 if (trans_index == 3):  # repeat a word
                     to_insert = words[word_index]
                     sentence = word_insert(sentence, word_index, to_insert)
@@ -707,6 +709,8 @@ class CompoundTransformer(Transformer):
                     active_params = get_active_params(
                         action_params,    VALID_RATE, transform.get_vector_size())
                     sentence, rate = transform.apply(sentence, active_params)
+                    print("sentence", sentence)
+                    print("rate", rate)
                     cum_trans_rate = cum_trans_rate + rate
                     exit()
                 else:  # action is not activated ~ not from top k

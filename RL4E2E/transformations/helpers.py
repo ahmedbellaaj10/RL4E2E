@@ -191,3 +191,92 @@ def calculate_modif_rate(sentence, sentence_): # word swap is not fully explored
 
 
 
+
+"""
+Most of the code from https://github.com/alvations/pywsd
+Paper : https://arxiv.org/pdf/1802.05667.pdf
+"""
+
+alpha = 0.2
+beta  = 0.45
+benchmark_similarity = 0.8025
+gamma = 1.8
+
+
+def _disambiguate(sentence):
+    wsd =[]
+    words = nltk.word_tokenize(sentence)
+    for word in words : 
+        try :
+            xx = wordnet.synsets(word)[1]
+        except :
+            xx = None
+        wsd.append((word,xx))
+    return wsd
+
+def calculate_similarity_sen(sentence1, sentence2):
+    L1 =dict()
+    L2 =defaultdict(list)
+    s1_wsd = _disambiguate(sentence1)
+    s2_wsd = _disambiguate(sentence2)
+    s1 = [syn  for syn in s1_wsd if syn[1]] # not None
+    s2 = [syn  for syn in s2_wsd if syn[1]] # not None
+    for syn1 in s1:
+        L1[syn1[0]] =list()
+        for syn2 in s2:                                     
+            
+            subsumer = syn1[1].lowest_common_hypernyms(syn2[1], simulate_root=True)[0]
+            h =subsumer.max_depth() + 1 # as done on NLTK wordnet        
+            syn1_dist_subsumer = syn1[1].shortest_path_distance(subsumer,simulate_root =True)
+            syn2_dist_subsumer = syn2[1].shortest_path_distance(subsumer,simulate_root =True)
+            l  =syn1_dist_subsumer + syn2_dist_subsumer
+            f1 = np.exp(-alpha*l)
+            a  = np.exp(beta*h)
+            b  = np.exp(-beta*h)
+            f2 = (a-b) /(a+b)
+            sim = f1*f2
+            L1[syn1[0]].append(sim)          
+            L2[syn2[0]].append(sim)
+    V1 =np.array( [max(L1[key]) for key in L1.keys()])
+    V2 = np.array([max(L2[key]) for key in L2.keys()])
+    S  = np.linalg.norm(V1)*np.linalg.norm(V2)
+    C1 = sum(V1>=benchmark_similarity)
+    C2 = sum(V2>=benchmark_similarity)
+    Xi = (C1+C2) / gamma
+    if C1+C2 == 0:
+            Xi = max(V1.size, V2.size) / 2
+
+    return S/Xi
+
+def modif_rate_sen(sentence1, sentence2):
+    try :
+        modif = 1-calculate_similarity_sen(sentence1, sentence2)
+    except : 
+        modif = 0
+    if modif>1:
+        modif =1 
+    elif modif <0:
+        modif = 0
+    return modif
+
+
+def jaccard_modif_rate(word1, word2):
+    word1_l = list(word1)
+    word2_l = list(word2)
+    shared = set(word1_l).intersection(word2_l)
+    union = set(word1_l).union(word2_l)
+
+    return 1-len(union)/(shared)
+
+def nltk_modif(word1, word2):
+    try :
+        syn1 = wordnet.synsets(word1)[1]
+        syn2 = wordnet.synsets(word2)[1]
+        sim = wordnet.wup_similarity(syn1, syn2)
+        
+    except :
+        sim = 0
+
+    return 1-sim
+    
+

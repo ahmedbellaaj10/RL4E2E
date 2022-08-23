@@ -58,9 +58,6 @@ def enhance_action(acts, act_param, k):
 
 def train(env,args,log_path):
     logging.basicConfig(level=logging.INFO, filename=log_path)
-    if args.save_dir:
-        save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version+"k"+str(env.num_selected_actions))
-        os.makedirs(save_dir, exist_ok=True)
     infos  = []
     # try :
     env.seed(args.seed)
@@ -94,10 +91,18 @@ def train(env,args,log_path):
                     zero_index_gradients=args.zero_index_gradients,
                     seed=args.seed,
                     log_path = log_path)
+    if args.save_dir:
+        save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version+"k"+str(env.num_selected_actions))
+        if os.path.exists(save_dir) and len(os.listdir(save_dir))!= 0:
+            checkpoints = [int(cpt.split("_")[1]) for cpt in os.listdir(save_dir)]
+            agent.load_models( os.path.join(save_dir,"episode_"+str(max(checkpoints))) )
+        else :
+            checkpoints = [0]
+            os.makedirs(save_dir, exist_ok=True)
     total_reward = 0.
     returns = []
     start_time = time.time()
-    pbar = tqdm(range(args.episodes))
+    pbar = tqdm(range(args.episodes-max(checkpoints)))
     for i in pbar:
         info = {}
         info['turn'] = []
@@ -150,10 +155,10 @@ def train(env,args,log_path):
         returns.append(episode_reward)
         total_reward += episode_reward
         logging.info(f"after episode {i} total_reward is, {total_reward}")
-        if i != 0 and i % args.save_freq == 0:
-            os.mkdir(os.path.join(save_dir,"episode_"+str(i)))
-            agent.save_models(os.path.join(save_dir,"episode_"+str(i+1)))
-        message = "reward after episode "+str(i)+" is "+str(total_reward)
+        if i+max(checkpoints) != 0 and i+max(checkpoints) % args.save_freq == 0:
+            os.mkdir(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
+            agent.save_models(os.path.join(save_dir,"episode_"+str(i+1+max(checkpoints))))
+        message = "reward after episode "+str(i+max(checkpoints))+" is "+str(total_reward)
         pbar.set_description(message)
             
     # except Exception:
@@ -161,7 +166,6 @@ def train(env,args,log_path):
     #     file = open(os.path.join(save_dir,"infos.json"), "w")
     #     json.dump(infos, file, indent=4)
     #     file.close()
-        
     end_time = time.time()
     file = open(os.path.join(save_dir,"infos.json"), "w")
     json.dump(infos, file, indent=4)
@@ -278,7 +282,7 @@ if __name__ == '__main__':
     parser.add_argument('--zero_index_gradients', default=False, help="Whether to zero all gradients for action-parameters not corresponding to the chosen action.", type=bool)
     parser.add_argument('--action_input_layer', default=0, help='Which layer to input action parameters.', type=int)
     parser.add_argument('--layers', default=(128,), help='Duplicate action-parameter inputs.')
-    parser.add_argument('--save_freq', default=500, help='How often to save models (0 = never).', type=int)
+    parser.add_argument('--save_freq', default=200, help='How often to save models (0 = never).', type=int)
     parser.add_argument('--save_dir', default=os.path.join(FRAMEWORK_PATH,"results"), help='Output directory.', type=str)
     # parser.add_argument('--render_freq', default=100, help='How often to render / save frames of an episode.', type=int)
     # parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
