@@ -56,6 +56,9 @@ class GalaxyInterface(Interface):
             num_token_embeddings=doc["num_token_embeddings"], num_pos_embeddings=doc["num_pos_embeddings"], num_type_embeddings=doc["num_type_embeddings"], num_turn_embeddings=doc["num_turn_embeddings"], num_act=doc["num_act"], num_heads=doc["num_heads"], num_layers=doc["num_layers"] , hidden_dim=doc["hidden_dim"], padding_idx=doc["padding_idx"], dropout=doc["dropout"], embed_dropout=doc["embed_dropout"], attn_dropout=doc["attn_dropout"], ff_dropout=doc["ff_dropout"], use_discriminator=doc["use_discriminator"], dis_ratio=doc["dis_ratio"], bce_ratio=doc["bce_ratio"],pos_trainable= doc["pos_trainable"], with_joint_act=doc["with_joint_act"], with_rdrop_act=doc["with_rdrop_act"], initializer_range=doc["initializer_range"], lr=doc["lr"], weight_decay=doc["weight_decay"], gradient_accumulation_steps=doc["gradient_accumulation_steps"], warmup_steps=doc["warmup_steps"], max_grad_norm=doc["max_grad_norm"], generator=doc["generator"],min_gen_len=doc["min_gen_len"], max_gen_len=doc["max_gen_len"], use_true_prev_bspn= doc["use_true_prev_bspn"] , use_true_prev_aspn= doc["use_true_prev_aspn"],use_true_db_pointer=doc["use_true_db_pointer"], use_true_prev_resp= doc["use_true_prev_resp"], use_true_curr_bspn=doc["use_true_curr_bspn"], use_true_curr_aspn=doc["use_true_curr_aspn"], use_all_previous_context=doc["use_all_previous_context"], use_true_bspn_for_ctr_eval=doc["use_true_bspn_for_ctr_eval"], use_true_domain_for_ctr_eval=doc["use_true_domain_for_ctr_eval"], beam_size=doc["beam_size"], length_average=doc["length_average"], length_penalty=doc["length_penalty"], ignore_unk=doc["ignore_unk"], use_gpu=doc["use_gpu"], BPETextField=textfield, Dataset=data, Trainer=trainer, Generator= gene , Model=model_)
             break
         self.hparams.use_gpu = torch.cuda.is_available() and self.hparams.gpu >= 1
+        if self.hparams.use_gpu :
+            print("can use GPUUUUUU !!!!")
+
         if str(version) == "2.0":
             self.data = json.load(open(os.path.join(GALAXY_PATH,"data/multiwoz2.0/data_for_galaxy.json")))
         else :
@@ -78,7 +81,6 @@ class GalaxyInterface(Interface):
         # multi-gpu setting
         if self.hparams.gpu > 1 and torch.cuda.device_count() > 1:
             model = torch.nn.DataParallel(model)
-
         # construct trainer
         try: 
             self.trainer = MultiWOZTrainer(model, self.to_tensor, self.hparams, reader=self.reader, evaluator=self.evaluator)
@@ -323,7 +325,7 @@ class PptodInterface(Interface):
             pass
         logging.basicConfig(level=logging.INFO, filename=log_path)
         self.args = parse_config(version)
-        device = torch.device('cpu')
+        device = torch.device('cuda')
         sys.path.append(PPTOD_PATH)
         cfg = Config(self.args.data_path_prefix)
         assert self.args.model_name.startswith('t5')

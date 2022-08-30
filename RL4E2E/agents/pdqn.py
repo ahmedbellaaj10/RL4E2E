@@ -80,8 +80,6 @@ class QActor(nn.Module):
         self.activation = activation
         self.layers = nn.ModuleList()
         inputSize = (self.state_size[0] + self.action_parameter_size ,)
-        # print("self.state_size[0]",self.state_size[0])
-        # print("self.action_parameter_size",self.action_parameter_size)
         lastHiddenLayerSize = inputSize[0]
         if hidden_layers is not None:
             nh = len(hidden_layers)
@@ -102,7 +100,6 @@ class QActor(nn.Module):
         x = torch.cat((state, action_parameters), dim=1)
         num_layers = len(self.layers)
         for i in range(0, num_layers - 1):  
-            print(self.layers[i])
             if self.activation == "relu":
                 x = F.relu(self.layers[i](x))
             elif self.activation == "leaky_relu":
@@ -203,8 +200,7 @@ class PDQNAgent(Agent):
                  weighted=False,
                  average=False,
                  random_weighted=False,
-                 device = 'cpu',
-                #  device="cuda" if torch.cuda.is_available() else "cpu",
+                 device="cuda" if torch.cuda.is_available() else "cpu",
                  seed=None,
                  log_path = ''):
 
@@ -376,16 +372,16 @@ class PDQNAgent(Agent):
             all_action_parameters = self.actor_param.forward(state)
             # Hausknecht and Stone [2016] use epsilon greedy actions with uniform random action-parameter exploration
             rnd = self.np_random.uniform()
+
             # if rnd < self.epsilon: # this is the correct form
             logging.info(f"epsilone {self.epsilon}")
             if rnd < self.epsilon:
                 logging.info("exploration")
                 actions = get_random_actions(self.num_actions, self.top_k)
-                if not self.use_ornstein_noise:
-                    all_action_parameters = torch.from_numpy(np.random.uniform(self.action_parameter_min_numpy,
-                                                                               self.action_parameter_max_numpy))
+                all_action_parameters = torch.from_numpy(np.random.uniform(self.action_parameter_min_numpy,
+                                                                            self.action_parameter_max_numpy))
             else:
-                logging.info("exploration")
+                logging.info("exploitation")
                 Q_a = self.actor.forward(state.unsqueeze(
                     0), all_action_parameters.unsqueeze(0))
                 Q_a = Q_a.detach().cpu().data.numpy()

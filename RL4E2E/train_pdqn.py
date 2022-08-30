@@ -2,7 +2,6 @@ import json
 import logging
 import os
 from statistics import mode
-import sys
 import time
 import numpy as np
 import argparse
@@ -59,7 +58,6 @@ def enhance_action(acts, act_param, k):
 def train(env,args,log_path):
     logging.basicConfig(level=logging.INFO, filename=log_path)
     infos  = []
-    # try :
     env.seed(args.seed)
     np.random.seed(args.seed)
     assert env.num_selected_actions==args.num_selected_actions
@@ -112,8 +110,10 @@ def train(env,args,log_path):
         # agent.start_episode()
         done = False
         next_action ,ac_n ,all_action_parameters  = None, None, None
+        info['valids'] = 0
         while not done:
             turn_info = {}
+            # turn_info['valids'] = 0
             if next_action is None:
                 state = np.array(state, dtype=np.float32, copy=False)
                 act, action_parameters = agent.act(state)
@@ -141,16 +141,20 @@ def train(env,args,log_path):
             turn_info['new_utterance'] = new_utterance
             turn_info['reward'] = reward
             turn_info['trans_rate'] = trans_rate
+            turn_info['valid'] = trans_rate>= 0.25
+            if turn_info['valid'] :
+                info['valids']+=1
             turn_info['done'] = done
             episode_reward += reward
             info['turn'].append(turn_info)
             if done:
                 info['successful'] = successful
+                info['valid'] = info['valids']/state[0] > 0.5
                 info['episode_reward'] = episode_reward
+                info['avg_reward'] = episode_reward/len(info['turn'])
                 infos.append(info)
                 break
-            
-            
+
         agent.end_episode()
         returns.append(episode_reward)
         total_reward += episode_reward
@@ -158,6 +162,9 @@ def train(env,args,log_path):
         if i+max(checkpoints) != 0 and i+max(checkpoints) % args.save_freq == 0:
             os.mkdir(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
             agent.save_models(os.path.join(save_dir,"episode_"+str(i+1+max(checkpoints))))
+            file = open(os.path.join(save_dir,"infos_train"+str(checkpoints)+".json"), "w")
+            json.dump(infos, file, indent=4)
+            file.close()
         message = "reward after episode "+str(i+max(checkpoints))+" is "+str(total_reward)
         pbar.set_description(message)
             
@@ -167,7 +174,7 @@ def train(env,args,log_path):
     #     json.dump(infos, file, indent=4)
     #     file.close()
     end_time = time.time()
-    file = open(os.path.join(save_dir,"infos.json"), "w")
+    file = open(os.path.join(save_dir,"infos_train.json"), "w")
     json.dump(infos, file, indent=4)
     file.close()
     logging.info("Took %.2f seconds" % (end_time - start_time))
@@ -178,9 +185,10 @@ def train(env,args,log_path):
     
 
 def evaluate(env,args,logger):
-    if args.save_dir:
-        save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version)
-        os.makedirs(save_dir, exist_ok=True)
+
+    # if args.save_dir:
+    #     save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version)
+    #     os.makedirs(save_dir, exist_ok=True)
      
     agent = PDQNAgent(
                        env.observation_space.shape , env.action_space,
@@ -209,24 +217,109 @@ def evaluate(env,args,logger):
                                            'output_layer_init_std': 0.0001,},
                        zero_index_gradients=args.zero_index_gradients,
                        seed=args.seed)
-    agent.load_models( os.path.join(os.path.join(args.save_dir, args.model),args.version))
+    if args.save_dir:
+        save_dir = os.path.join(os.path.join(args.save_dir, args.model),args.version+"k"+str(env.num_selected_actions))
+        if os.path.exists(save_dir) and len(os.listdir(save_dir))!= 0:
+            checkpoints = [int(cpt.split("_")[1]) for cpt in os.listdir(save_dir)]
+            agent.load_models( os.path.join(save_dir,"episode_"+str(max(checkpoints))) )
+        else :
+            agent.load_models( os.path.join(os.path.join(args.save_dir, args.model),args.version))
     returns = []
-    timesteps = []
-    for _ in range(args.evaluation_episodes):
+    # timesteps = []
+    logging.basicConfig(level=logging.INFO, filename=log_path)
+    infos  = []
+    # for _ in range(args.evaluation_episodes):
+    #     state = env.reset()
+    #     done = False
+    #     t = 0
+    #     total_reward = 0.
+    #     while not done:
+    #         t += 1
+    #         state = np.array(state, dtype=np.float32, copy=False)
+    #         act, all_action_parameters, _ = agent.act(state)
+    #         action = (act, all_action_parameters)
+    #         state, reward, done, _ = env.step(action)
+    #         total_reward += reward
+    #     timesteps.append(t)
+    #     returns.append(total_reward)
+    # return np.array(returns)
+    pbar = tqdm(range(args.evaluation_episodes))
+    start_time = time.time()
+    for i in pbar:
+        info = {}
+        info['turn'] = []
+        turn_info['valids'] = 0
         state = env.reset()
+        episode_reward = 0.
         done = False
-        t = 0
-        total_reward = 0.
+        # next_action ,ac_n ,all_action_parameters  = None, None, None
         while not done:
-            t += 1
+            turn_info = {}
+            # if next_action is None:
             state = np.array(state, dtype=np.float32, copy=False)
-            act, all_action_parameters, _ = agent.act(state)
-            action = (act, all_action_parameters)
-            state, reward, done, _ = env.step(action)
-            total_reward += reward
-        timesteps.append(t)
-        returns.append(total_reward)
-    return np.array(returns)
+            act, action_parameters = agent.act(state)
+            action_parameters = pad_action(act, action_parameters , agent.top_k)
+            action = (act, action_parameters)
+            all_action_parameters = enhance_action(act, action_parameters , agent.top_k)
+            all_action = (act, all_action_parameters)
+            # else :
+            #     all_action = (ac_n, all_action_parameters)
+            info['episode'] = i
+            turn_info['state'] = str(state)
+            info['dialogue'] = env.hidden_state_dial_name
+            info['action'] = all_action
+            ret = env.step(all_action)
+            utterance,new_utterance,next_state, reward, trans_rate, done, successful = ret
+            # next_state = np.array(next_state, dtype=np.float32, copy=False)
+            # next_action = agent.act(next_state)
+            # ac_n, p_n = next_action
+            # ac_, p_ = action
+            # all_action_parameters = enhance_action(ac_n, p_n , agent.top_k)
+            # all_action = (ac_n, all_action_parameters)
+            # agent.step(state, p_, reward, next_state, p_n, done)
+            # state = next_state
+            turn_info['utterance'] = utterance
+            turn_info['new_utterance'] = new_utterance
+            turn_info['reward'] = reward
+            turn_info['trans_rate'] = trans_rate
+            turn_info['valid'] = trans_rate>= 0.25
+            if turn_info['valid'] :
+                turn_info['valids']+=1
+            turn_info['done'] = done
+            episode_reward += reward
+            info['turn'].append(turn_info)
+            if done:
+                info['successful'] = successful
+                info['valid'] = turn_info['valids']/state[0] > 0.5
+                info['episode_reward'] = episode_reward
+                infos.append(info)
+                break
+            
+            
+        agent.end_episode()
+        returns.append(episode_reward)
+        total_reward += episode_reward
+        logging.info(f"after episode {i} total_reward is, {total_reward}")
+        if i+max(checkpoints) != 0 and i+max(checkpoints) % args.save_freq == 0:
+            os.mkdir(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
+            agent.save_models(os.path.join(save_dir,"episode_"+str(i+1+max(checkpoints))))
+        message = "reward after episode "+str(i+max(checkpoints))+" is "+str(total_reward)
+        pbar.set_description(message)
+            
+    # except Exception:
+    #     # logging.info("exception :",Exception)
+    #     file = open(os.path.join(save_dir,"infos.json"), "w")
+    #     json.dump(infos, file, indent=4)
+    #     file.close()
+    end_time = time.time()
+    file = open(os.path.join(save_dir,"infos_eval.json"), "w")
+    json.dump(infos, file, indent=4)
+    file.close()
+    logging.info("Took %.2f seconds" % (end_time - start_time))
+    env.close()
+    # agent.save_models(save_dir)
+    # logging.info(f"Ave. return = {sum(returns) / len(returns)}")
+    # np.save(save_dir,returns)  
 
 
 def main(env,args,log_path):
@@ -235,29 +328,12 @@ def main(env,args,log_path):
     else :
         evaluate(env,args,log_path)
 
-# def get_logger(log_path, name="default"):
-#     logger = logging.getLogger(name)
-#     logger.propagate = False
-#     logger.setLevel(logging.INFO)
-
-#     formatter = logging.Formatter("%(message)s")
-
-#     sh = logging.StreamHandler(sys.stdout)
-#     sh.setFormatter(formatter)
-#     logger.addHandler(sh)
-
-#     fh = logging.FileHandler(log_path, mode="w")
-#     fh.setFormatter(formatter)
-#     logger.addHandler(fh)
-
-#     return logger
-
 
 if __name__ == '__main__': 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--seed', default=512, help='Random seed.', type=int)
-    parser.add_argument('--evaluation_episodes', default=10, help='Episodes over which to evaluate after training.', type=int) # episodes = 1000
-    parser.add_argument('--episodes', default=1, help='Number of epsiodes.', type=int) #20000
+    parser.add_argument('--seed', default=1, help='Random seed.', type=int)
+    parser.add_argument('--evaluation_episodes', default=500, help='Episodes over which to evaluate after training.', type=int) # episodes = 1000
+    parser.add_argument('--episodes', default=10000, help='Number of epsiodes.', type=int) #20000
     parser.add_argument('--batch_size', default=128, help='Minibatch size.', type=int)
     parser.add_argument('--gamma', default=0.9, help='Discount factor.', type=float)
     parser.add_argument('--inverting_gradients', default=True,
@@ -282,17 +358,15 @@ if __name__ == '__main__':
     parser.add_argument('--zero_index_gradients', default=False, help="Whether to zero all gradients for action-parameters not corresponding to the chosen action.", type=bool)
     parser.add_argument('--action_input_layer', default=0, help='Which layer to input action parameters.', type=int)
     parser.add_argument('--layers', default=(128,), help='Duplicate action-parameter inputs.')
-    parser.add_argument('--save_freq', default=200, help='How often to save models (0 = never).', type=int)
+    parser.add_argument('--save_freq', default=1000, help='How often to save models (0 = never).', type=int)
     parser.add_argument('--save_dir', default=os.path.join(FRAMEWORK_PATH,"results"), help='Output directory.', type=str)
-    # parser.add_argument('--render_freq', default=100, help='How often to render / save frames of an episode.', type=int)
-    # parser.add_argument('--title', default="PDDQN", help="Prefix of output files", type=str)
     parser.add_argument('--action', default="train", help="train or evaluate", type=str)  
     parser.add_argument('--model', default="galaxy", choices=["galaxy", "pptod"], help="the model we want to test", type=str) 
     parser.add_argument('--version', default="2.0", choices=["2.0", "2.1"], help="the multiwoz version we want to use", type=str) 
     parser.add_argument('--num_selected_actions', default=1, help="how many actions to apply simultaniously", type=int) 
     args = parser.parse_args()
     mode = "dev" if args.action == 'train' else "test"
-    logging_path = os.path.join(FRAMEWORK_PATH,"results/"+args.model+"/"+args.version)
+    logging_path = os.path.join(FRAMEWORK_PATH,"results/"+args.model+"/"+args.version+'/'+str(args.num_selected_actions))
     if not os.path.exists(logging_path):
         os.makedirs(logging_path)
     log_path = os.path.join(logging_path,"output.log")

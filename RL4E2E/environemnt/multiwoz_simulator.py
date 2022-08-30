@@ -1,6 +1,3 @@
-from asyncio.log import logger
-from calendar import c
-import os
 import gym
 from gym import spaces
 from gym.spaces import MultiDiscrete, Discrete
@@ -22,8 +19,8 @@ ACTIONS = {
     1: "WordDrop",
     2: "WordReplace",
     3: "CharInsert",
-    4: "WordDrop",
-    5: "WordReplace"
+    4: "CharDrop",
+    5: "CharReplace"
 }
 
 
@@ -111,7 +108,7 @@ class MultiwozSimulator(gym.Env):
         logging.info(f"the actions vector is {actions}")
         for i,k in zip(actions[0::2], actions[1::2]):
             if k != 0.0:
-                logging.info(f"the action {ACTIONS[i]} is choosen")
+                logging.info(f"the action {TRANSFORMATIONS[i]} is choosen")
         all_params = np.clip(
             all_params, a_min=np.zeros(len(all_params), dtype="float"), a_max=np.ones(len(all_params), dtype = "float"))
         logging.info(f"the params vector is {all_params}")
@@ -125,24 +122,28 @@ class MultiwozSimulator(gym.Env):
         turn = self.interface.get_turn_with_context(dialogue_copy , num_current_turn)
         utterance , utterance_delex = self.interface.get_utterance_and_utterance_delex(dialogue_copy , num_current_turn)
         logging.info(f"before transformation, the sentence was: {utterance}")
-        logging.info(f"before transformation, the delexicalized sentence was: {utterance_delex}")
+        print(f"before transformation, the sentence was: {utterance}")
+        # logging.info(f"before transformation, the delexicalized sentence was: {utterance_delex}")
         utterance , utterance_delex , idxs = self.remove_keywords(utterance , utterance_delex)
         new_utterance , trans_rate = self.compound_transfomer.apply(utterance, action)
-        new_utterance_delex , _ = self.compound_transfomer.apply(utterance_delex , action)
-        utterance , utterance_delex = self.restore_keywords(utterance , utterance_delex , idxs)
-        logging.info(f"after transformation, the sentence was: {utterance}")
-        logging.info(f"after transformation, the delexicalized sentence was: {utterance_delex}")
+        # new_utterance_delex , _ = self.compound_transfomer.apply(utterance_delex , action)
+        new_utterance_delex = new_utterance
+        new_utterance , new_utterance_delex = self.restore_keywords(new_utterance , new_utterance_delex , idxs)
+        logging.info(f"after transformation, the sentence was: {new_utterance}")
+        print(f"after transformation, the sentence was: {new_utterance}")
+        trans_rate = min(trans_rate , 1)
+        print("transformation rate", trans_rate)
+        # logging.info(f"after transformation, the delexicalized sentence was: {utterance_delex}")
         turn_modified = self.interface.copy_dial_or_turn(turn)
         self.interface.set_utterance_and_utterance_delex(turn_modified, num_current_turn ,new_utterance, new_utterance_delex)
         turn_encoded , turn_mdified_encoded = self.interface.encode_turn(dialogue_name , turn) , self.interface.encode_turn(dialogue_name , turn_modified)
         turn_predict, _, _ = self.interface.predict_turn(turn_encoded)
         resp , resp_gen = self.get_resp_and_resp_gen(turn_predict)
-        
         turn_modified_predict, _, _ = self.interface.predict_turn(turn_mdified_encoded)
         resp , resp_gen_modified = self.get_resp_and_resp_gen(turn_modified_predict)
         bleu1 = bleu(resp , resp_gen)
         bleu2 = bleu(resp , resp_gen_modified)
-        beta = 0 if trans_rate<0.25 else -1000
+        beta = 0 if trans_rate<0.25 else -101
         logging.info(f"bleu score for real data was : {bleu1}")
         logging.info(f"bleu score for transformed data was : {bleu2}")
         
@@ -153,15 +154,19 @@ class MultiwozSimulator(gym.Env):
         self.state[self.Remaining_Turns_Order]-=1
         if self.state[self.Remaining_Turns_Order]==0 :
             done = True
-            logger.info("this dialogue is done")
+            logging.info("this dialogue is done")
             bleu_sc , success , match = self.interface.evaluate(turn_modified_predict)
             if round(success + match) == 200:
                 successful = True
-                reward += 1
+                reward += 10
             self.state = self.reset()
         bleu_diff = bleu1 - bleu2 if bleu1 - bleu2>0 else (bleu1 - bleu2) -100
-        reward += (bleu_diff)/trans_rate + beta if trans_rate else (bleu_diff)
-        logger.info(f"reward is {reward}")
+        print(bool(trans_rate))
+        x = (bleu_diff) + trans_rate*(beta+1)
+        # if trans_rate else (bleu_diff)
+        print("x", x)
+        reward += x
+        logging.info(f"reward is {reward}")
         return utterance,new_utterance, self.state, reward, trans_rate, done, successful
         
 
@@ -173,18 +178,24 @@ class MultiwozSimulator(gym.Env):
         user = utterance.split()
         delex = utterance_delex.split()
         idxs = {}
-        for idx , word in enumerate(delex) :
+        i = 0
+        for idx , word in enumerate(delex):
             if word.startswith('[') and word.endswith(']') or word.startswith('<') and word.endswith('>'):
-                kw = user[idx]
-                user.remove(user[idx])
+                try :
+                    kw = user[idx]
+                    user.remove(user[idx])
+                except :
+                    kw = user[idx-i]
+                    user.remove(user[idx-1])
                 try :
                     while user[idx] != delex[idx+1]:
                         kw = kw+" "+user[idx]
                         user.remove(user[idx])
                 except :
                     pass
-                idxs.update({idx : [kw , word]})
+                idxs.update({idx+i : [kw , word]})
                 delex.remove(word)
+                i+=1
                 
         utterance = ' '.join(user)
         utterance_delex = ' '.join(delex)
@@ -194,7 +205,6 @@ class MultiwozSimulator(gym.Env):
         user = utterance.split(' ')
         delex = utterance_delex.split(' ')
         for key, value in idxs.items():
-            print(key , value[0], value[1])
             user.insert(key, value[0])
             delex.insert(key, value[1])
         utterance = ' '.join(user)

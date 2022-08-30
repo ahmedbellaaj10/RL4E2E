@@ -7,8 +7,8 @@ echo $WORK_DIR
 cd RL4E2E
 
 python train_pdqn.py \
-    --episodes=2000 \
-    --epsilon_steps=2000 \
+    --episodes=10000 \
+    --epsilon_steps=1000 \
     --action=train \
     --model=galaxy \
     --version=2.1 \

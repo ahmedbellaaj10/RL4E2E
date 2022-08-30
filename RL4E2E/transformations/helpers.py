@@ -1,17 +1,45 @@
+from collections import defaultdict
 import nltk
 from nltk.corpus import wordnet
+import numpy as np
 from RL4E2E.transformations.constants import WORD_TAG_DICT
 
 
 def char_repeat(sentence, char_index):
+    s = sentence.split()
     char = sentence[char_index]
+    rate = 0
+    if char == ' ':
+        pass
+    else :
+        offsets = []
+        for word in s:
+            if offsets == []:
+                offsets.append((0,len(word)))
+            else :
+                offsets.append((offsets[-1][1]+1,offsets[-1][1]+len(word)+1))
+            if offsets[-1][0]<int(char_index)<=offsets[-1][1]:
+                affected_word = word
+                rate = 1/len(affected_word) if 1/len(affected_word) < 0.25 else 1
     sentence = sentence[:char_index] + char + sentence[char_index:]
-    return sentence
+    
+    return sentence , rate
 
 
 def char_insert(sentence, char_index, char):
+    s = sentence.split()
+    rate = 0
+    offsets = []
+    for word in s:
+        if offsets == []:
+            offsets.append((0,len(word)))
+        else :
+            offsets.append((offsets[-1][1]+1,offsets[-1][1]+len(word)+1))
+        if offsets[-1][0]<int(char_index)<=offsets[-1][1]:
+            affected_word = word
+            rate = 1/len(affected_word) if 1/len(affected_word) < 0.25 else 1
     sentence = sentence[:char_index] + char + sentence[char_index:]
-    return sentence
+    return sentence , rate
 
 
 def get_char(number, min=ord('a'), max=ord('z')):
@@ -19,13 +47,46 @@ def get_char(number, min=ord('a'), max=ord('z')):
 
 
 def char_drop(sentence, char_index):
+    s = sentence.split()
+    char = sentence[char_index]
+    rate = 0
+    if char == ' ':
+        rate = 1
+    else :
+        offsets = []
+        for word in s:
+            if offsets == []:
+                offsets.append((0,len(word)))
+            else :
+                offsets.append((offsets[-1][1]+1,offsets[-1][1]+len(word)+1))
+            if offsets[-1][0]<int(char_index)<=offsets[-1][1]:
+                affected_word = word
+                rate = 1/len(affected_word) if 1/len(affected_word) < 0.25 else 1
     sentence = sentence[:char_index] + sentence[char_index+1:]
-    return sentence
-
+    return sentence , rate
 
 def char_replace(sentence, char_index, char):
+    offsets = []
+    rate = 0
+    s = sentence.split()
+    old_char = sentence[char_index] 
+    if old_char == ' ':
+        if char == ' ':
+            pass
+        else :
+            rate = 1
+    else:
+        for word in s:
+            if offsets == []:
+                offsets.append((0,len(word)))
+            else :
+                offsets.append((offsets[-1][1]+1,offsets[-1][1]+len(word)+1))
+            if offsets[-1][0]<int(char_index)<=offsets[-1][1]:
+                affected_word = word
+                rate = 1/len(affected_word) if 1/len(affected_word) < 0.25 else 1
     sentence = sentence[:char_index] + char + sentence[char_index+1:]
-    return sentence
+    
+    return sentence, rate
 
 
 def char_swap(sentence, char_index):
@@ -33,20 +94,43 @@ def char_swap(sentence, char_index):
     Swap between chars at char_index and char_index+1
     If char_index is the last element swap between chars at char_index-1 and at char_index
     """
+    s = sentence.split()
+    rate = 0
+    offsets = []
     length_ = len(sentence)
     if char_index == length_-1:  # the last element in the sentence
         sentence = sentence[:char_index-1] + \
             sentence[char_index] + sentence[char_index-1]
+        if sentence[char_index-1] == ' ':
+            rate = 1/len(s[-1]) if 1/len(s[-1]) < 0.25 else 1
     else:
+        for i , word in enumerate(s):
+            if offsets == []:
+                offsets.append((0,len(word)))
+            else :
+                offsets.append((offsets[-1][1]+1,offsets[-1][1]+len(word)+1))
+            if offsets[-1][0]<int(char_index)<=offsets[-1][1]:
+                affected_word = word
+                rate = 1/len(word) if 1/len(word) < 0.25 else 1  
+            elif offsets[-2][1]<int(char_index)<offsets[-1][0]:
+                affected_words = [s[i-1], s[i]]
+                rate1 = 1/len(affected_words[0]) if 1/len(affected_words[0]) < 0.25 else 1
+                rate2 = 1/len(affected_words[1]) if 1/len(affected_words[1]) < 0.25 else 1
+                rate = rate1+rate2
+
+        
+
         sentence = sentence[:char_index] + sentence[char_index +
                                                     1] + sentence[char_index] + sentence[char_index+2:]
-    return sentence
+        
+
+    return sentence , rate
 
 
 def word_insert(sentence, word_index, word):
     words = nltk.word_tokenize(sentence)
     words[word_index] = words[word_index] + " " + word
-    return " ".join(words)
+    return " ".join(words) , 1
 
 
 def word_piece_insert(sentence, word_index, model, tokenizer):
@@ -69,19 +153,19 @@ def word_piece_insert(sentence, word_index, model, tokenizer):
         index = mask_token_indexs[i]
         input_ids[index] = predicted_token_id[i]
     senetnce = tokenizer.decode(input_ids)
-    return senetnce
+    return senetnce, 1
 
 
 def word_drop(sentence, word_index):
     words = nltk.word_tokenize(sentence)
     words[word_index] = ""
-    return " ".join(words)
+    return " ".join(words) , 1
 
 
 def word_replace(sentence, word_index, word):
     words = nltk.word_tokenize(sentence)
     words[word_index] = word
-    return " ".join(words)
+    return " ".join(words) , 1
 
 
 def word_swap(sentence, word_index):
@@ -96,7 +180,7 @@ def word_swap(sentence, word_index):
 
     words[word_index] = swap
     words[swap_index] = word
-    return " ".join(words)
+    return " ".join(words) , 2
 
 
 def get_general_tag(tag: str):
@@ -266,14 +350,16 @@ def jaccard_modif_rate(word1, word2):
     shared = set(word1_l).intersection(word2_l)
     union = set(word1_l).union(word2_l)
 
-    return 1-len(union)/(shared)
+    return 1-len(union)/len(shared)
 
 def nltk_modif(word1, word2):
+    sim = 0
     try :
         syn1 = wordnet.synsets(word1)[1]
         syn2 = wordnet.synsets(word2)[1]
         sim = wordnet.wup_similarity(syn1, syn2)
-        
+        if sim is None:
+            sim = 0
     except :
         sim = 0
 

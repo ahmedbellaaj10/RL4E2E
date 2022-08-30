@@ -10,7 +10,8 @@ nltk.download('averaged_perceptron_tagger')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 import gensim.downloader as api
-from RL4E2E.transformations.helpers import char_insert, char_replace, get_char, char_repeat, char_drop, char_swap, jaccard_modif_rate, nltk_modif, word_insert, word_piece_insert, word_drop, word_replace, word_swap, get_synonyms, construct_dict_file, get_active_params
+from RL4E2E.transformations.helpers import char_insert, char_replace, get_char, char_repeat, char_drop, char_swap, word_insert, word_piece_insert, word_drop, word_replace, word_swap, get_synonyms, construct_dict_file, get_active_params
+# jaccard_modif_rate, nltk_modif, 
 from RL4E2E.transformations.constants import DIACTIRICS, PUNKT, VOWELS, ADJACENT_AZERTY, ADJACENT_QUERTY, EMOTICONS, MISSPELLED_FILE, TOP_N, WORD_TAG_DICT
 from RL4E2E.transformations.constants import WORD_DROP_N_TRANS, WORD_INSERT_N_TRANS, WORD_REPLACE_N_TRANS, CHAR_DROP_N_TRANS, CHAR_INSERT_N_TRANS, CHAR_REPLACE_N_TRANS
 from RL4E2E.transformations.constants import WORD_INSERT_VECTOR_SIZE, WORD_REPLACE_VECTOR_SIZE, WORD_DROP_VECTOR_SIZE, CHAR_DROP_VECTOR_SIZE, CHAR_INSERT_VECTOR_SIZE, CHAR_REPLACE_VECTOR_SIZE
@@ -89,37 +90,40 @@ class CharInsert(Transformer):
         return params
 
     def apply(self, ori_sentence, transformation_vectors):
-
+        trans_rate = 0
         sentence = super().apply(ori_sentence, transformation_vectors)
         length_ = len(sentence)
         n_t = 0
         for i in range(len(transformation_vectors)//self.vector_size):
             char_index = transformation_vectors[i*self.vector_size]
-            char_index = round(length_ * char_index)
+            char_index = int(round(length_ * char_index))
             if char_index != 0:  # Transformation is active
                 n_t = n_t+1  # number of active transformations
-
+                
                 char_index = char_index-1
                 trans_index = transformation_vectors[i*self.vector_size+1]
-                trans_index = round(trans_index*(self.n_trans - 1))
+                trans_index = int(round(trans_index*(self.n_trans - 1)))
 
                 if trans_index == 0:  # char repeat
-                    sentence = char_repeat(sentence, char_index)
+                    sentence, rate = char_repeat(sentence, char_index)
 
                 if trans_index == 1:  # random char insert
                     char = transformation_vectors[i*self.vector_size+2]
                     char = chr(get_char(char))
-                    sentence = char_insert(sentence, char_index, char)
+                    sentence, rate = char_insert(sentence, char_index, char)
 
                 if trans_index == 2:  # punctuation insert
                     punk_index = transformation_vectors[i*self.vector_size+2]
-                    punk_index = round(punk_index * (len(self.punkt) - 1))
+                    punk_index = int(round(punk_index * (len(self.punkt) - 1)))
                     punkt = self.punkt[punk_index]
-                    sentence = char_insert(sentence, char_index, punkt)
+                    sentence,rate = char_insert(sentence, char_index, punkt)
+                trans_rate+= rate
             if n_t >= self.valid_trans:
-                return sentence, 1 - length_/len(sentence)
+                # return sentence, 1 - length_/len(sentence)
+                return sentence, trans_rate
 
-            return sentence, 1 - length_/len(sentence)
+        # return sentence, 1 - length_/len(sentence)
+        return sentence, trans_rate
 
     def get_upper_bound(self):
         return np.array([1]*self.get_vector_size())
@@ -172,47 +176,51 @@ class CharDrop(Transformer):
         sentence = super().apply(ori_sentence, transformation_vectors)
         n_t = 0
         length_ = len(sentence)
+        trans_rate = 0
         for i in range(len(transformation_vectors)//self.vector_size):
             trans_index = transformation_vectors[i*self.vector_size+1]
-            trans_index = round(trans_index*(self.n_trans - 1))
+            trans_index = int(round(trans_index*(self.n_trans - 1)))
             char_index = transformation_vectors[i*self.vector_size]
+            rate = 0
             if (trans_index == 0):  # random char drop
                 length_ = len(sentence)
-                char_index = round(length_ * char_index)
+                char_index = int(round(length_ * char_index))
                 if char_index != 0:
                     n_t = n_t + 1
                     char_index = char_index - 1
-                    sentence = char_drop(sentence, char_index)
+                    sentence, rate = char_drop(sentence, char_index)
 
             if (trans_index == 1):  # space drop
                 spaces = [i for i, x in enumerate(sentence) if x == " "]
-                space_index = round(len(spaces) * char_index)
+                space_index = int(round(len(spaces) * char_index))
                 if space_index != 0:
                     n_t = n_t + 1
                     space_index = space_index-1
-                    sentence = char_drop(sentence, spaces[space_index])
+                    rate = 1
+                    sentence , rate = char_drop(sentence, spaces[space_index])
 
             if (trans_index == 2):  # vowel drop
                 vowels = [i for i, x in enumerate(
                     sentence) if x in self.vowel_list]
-                vowel_index = round(len(vowels) * char_index)
+                vowel_index = int(round(len(vowels) * char_index))
                 if vowel_index != 0:
                     n_t = n_t + 1
                     vowel_index = vowel_index-1
-                    sentence = char_drop(sentence, vowels[vowel_index])
+                    sentence, rate = char_drop(sentence, vowels[vowel_index])
 
             if (trans_index == 3):  # punctuation drop
                 punkts = [i for i, x in enumerate(sentence) if x in self.punkt]
-                punkt_index = round(len(punkts) * char_index)
+                punkt_index = int(round(len(punkts) * char_index))
                 if punkt_index != 0:
                     n_t = n_t + 1
                     punkt_index = punkt_index-1
-                    sentence = char_drop(sentence, punkts[punkt_index])
-
+                    sentence, rate = char_drop(sentence, punkts[punkt_index])
+            trans_rate += rate
             if n_t >= self.valid_trans:
-                return sentence, 1 - len(sentence)/length_
-
-        return sentence, 1 - len(sentence)/length_
+                # return sentence, 1 - len(sentence)/length_
+                return sentence, trans_rate
+        # return sentence, 1 - len(sentence)/length_
+        return sentence, trans_rate
 
     def get_upper_bound(self):
         return np.array([1]*self.get_vector_size())
@@ -266,20 +274,22 @@ class CharReplace(Transformer):
     def apply(self, ori_sentence, transformation_vectors):
         n_t = 0
         length_ = len(ori_sentence)
+        trans_rate = 0
         sentence = super().apply(ori_sentence, transformation_vectors)
         for i in range(len(transformation_vectors)//self.vector_size):
+            rate = 0
             trans_index = transformation_vectors[i*self.vector_size+1]
-            trans_index = round(trans_index*(self.n_trans - 1))
+            trans_index = int(round(trans_index*(self.n_trans - 1)))
             char_index = transformation_vectors[i*self.vector_size]
             length_ = len(sentence)
-            char_index = round(length_ * char_index)
+            char_index = int(round(length_ * char_index))
             if (trans_index == 0):  # random char replace
                 if char_index != 0:
                     n_t = n_t+1
                     char_index = char_index-1
                     char = transformation_vectors[i*self.vector_size+2]
                     char = chr(get_char(char))
-                    sentence = char_replace(sentence, char_index, char)
+                    sentence, rate = char_replace(sentence, char_index, char)
 
             if (trans_index == 1):  # replace adjacent azerty
                 if char_index != 0:
@@ -290,10 +300,10 @@ class CharReplace(Transformer):
                         azerty_list = self.azerty[char]
                         char_azerty = transformation_vectors[i *
                                                              self.vector_size+2]
-                        char_azerty = round(len(azerty_list) * char_azerty)
+                        char_azerty = int(round(len(azerty_list) * char_azerty))
                         char_azerty = char_azerty - 1
                         char_azerty = azerty_list[char_azerty]
-                        sentence = char_replace(
+                        sentence, rate = char_replace(
                             sentence, char_index, char_azerty)
 
             if (trans_index == 2):  # replace adjacent querty
@@ -305,16 +315,16 @@ class CharReplace(Transformer):
                         querty_list = self.querty[char]
                         char_querty = transformation_vectors[i *
                                                              self.vector_size+2]
-                        char_querty = round(len(querty_list) * char_querty)
+                        char_querty = int(round(len(querty_list) * char_querty))
                         char_querty = char_querty - 1
                         char_querty = querty_list[char_querty]
-                        sentence = char_replace(
+                        sentence, rate = char_replace(
                             sentence, char_index, char_querty)
 
             if (trans_index == 3):  # replace with diactric form
                 diactric_list = [i for i, x in enumerate(
                     sentence) if x in list(self.diactrics.keys())]
-                char_index = round(len(diactric_list) * char_index)
+                char_index = int(round(len(diactric_list) * char_index))
                 if char_index != 0:
                     n_t = n_t+1
                     char_index = char_index-1
@@ -322,21 +332,23 @@ class CharReplace(Transformer):
                     char = sentence[char_index]  # to_replace
                     diactric_ = self.diactrics[char]
                     replace_with = transformation_vectors[i*self.vector_size+2]
-                    replace_with = round(len(diactric_) * replace_with)
+                    replace_with = int(round(len(diactric_) * replace_with))
                     replace_with = replace_with-1
                     replace_with = diactric_[replace_with]
-                    sentence = char_replace(sentence, char_index, replace_with)
+                    sentence, rate = char_replace(sentence, char_index, replace_with)
 
             if (trans_index == 4):  # swap between two characters
                 if char_index != 0:
                     n_t = n_t+1
                     char_index = char_index-1
-                    sentence = char_swap(sentence, char_index)
-
+                    sentence, rate = char_swap(sentence, char_index)
+            trans_rate += trans_rate
             if n_t >= self.valid_trans:
-                return sentence,  n_t/length_
+                # return sentence,  n_t/length_
+                return sentence, trans_rate
 
-        return sentence, n_t/length_
+        # return sentence, n_t/length_
+        return sentence, trans_rate
 
     def get_upper_bound(self):
         return np.array([1]*self.get_vector_size())
@@ -394,41 +406,48 @@ class WordInsert(Transformer):
 
     def apply(self, sentence, transformation_vectors):
         words = nltk.word_tokenize(sentence)
+        trans_rate = 0
         length_ = len(words)  # n words, original word length
         sentence = super().apply(sentence, transformation_vectors)
         n_t = 0
         for i in range(len(transformation_vectors)//self.vector_size):
+            rate = 0
             trans_index = transformation_vectors[i*self.vector_size+1]
-            trans_index = round(trans_index*(self.n_trans - 1))
+            trans_index = int(round(trans_index*(self.n_trans - 1)))
             word_index = transformation_vectors[i*self.vector_size]
-            word_index = round(length_ * word_index)
+            word_index = int(round(length_ * word_index))
             if word_index > 0:
                 n_t = n_t+1
                 word_index = word_index - 1
                 if (trans_index == 0):  # insert a word using a pre-trained model
-                    sentence = word_piece_insert(
+                    sentence, rate = word_piece_insert(
                         sentence, word_index, self.model, self.tokenizer)
                 if (trans_index == 1):  # insert a stop word
                     stop_word_index = transformation_vectors[i *
                                                              self.vector_size+2]
-                    stop_word_index = round(
-                        stop_word_index * len(self.stop_words)) - 1
+                    stop_word_index = int(round(
+                        stop_word_index * len(self.stop_words)) - 1)
                     stop_word = self.stop_words[stop_word_index]
-                    sentence = word_insert(sentence, word_index, stop_word)
-                if (trans_index == 2):  # insert an emoji
-                    emoji_index = transformation_vectors[i*self.vector_size+2]
-                    emoji_index = round(emoji_index * len(self.emoji)) - 1
-                    emoji = self.emoji[emoji_index]
-                    sentence = word_insert(sentence, word_index, emoji)
-                if (trans_index == 3):  # repeat a word
+                    sentence, rate = word_insert(sentence, word_index, stop_word)
+                # if (trans_index == 2):  # insert an emoji
+                #     print("insert an emoji")
+                #     emoji_index = transformation_vectors[i*self.vector_size+2]
+                #     emoji_index = int(round(emoji_index * len(self.emoji))) - 1
+                #     emoji = self.emoji[emoji_index]
+                #     print("emoji",emoji)
+                #     sentence, rate = word_insert(sentence, emoji_index, emoji)
+                if (trans_index == 2):  # repeat a word
                     to_insert = words[word_index]
-                    sentence = word_insert(sentence, word_index, to_insert)
+                    sentence, rate = word_insert(sentence, word_index, to_insert)
+            trans_rate += rate
             if n_t >= self.valid_trans:
                 words = nltk.word_tokenize(sentence)
-                return sentence, 1-length_/len(words)  # jaccard distance
+                # return sentence, 1-length_/len(words)  # jaccard distance
+                return sentence, trans_rate
 
         words = nltk.word_tokenize(sentence)
-        return sentence, 1-length_/len(words)  # jaccard distance
+        # return sentence, 1-length_/len(words)  # jaccard distance
+        return sentence, trans_rate
 
     def get_upper_bound(self):
         return np.array([1]*self.get_vector_size())
@@ -480,43 +499,47 @@ class WordDrop(Transformer):
         n_t = 0
         words = nltk.word_tokenize(sentence)
         length_ = len(words)
+        trans_rate = 0
         sentence = super().apply(sentence, transformation_vectors)
-        for i in range(len(transformation_vectors) // self.vector_size):
+        for i in range((len(transformation_vectors) // self.vector_size)-1):
+            rate = 0
             trans_index = transformation_vectors[i*self.vector_size+1]
-            trans_index = round(trans_index*(self.n_trans - 1))
+            trans_index = int(round(trans_index*(self.n_trans - 1)))
             word_index = transformation_vectors[i*self.vector_size]
             words = nltk.word_tokenize(sentence)
             if trans_index == 0:  # drop a random word
-                word_index = round(word_index * len(words))
+                word_index = int(round(word_index * len(words)))
                 if word_index != 1:
                     n_t = n_t + 1
                     word_index = word_index-1
-                    sentence = word_drop(sentence, word_index)
+                    sentence, rate = word_drop(sentence, word_index)
 
             elif trans_index == 1:  # drop a stop word
                 stop_words = [i for i, x in enumerate(
                     words) if x in self.stop_words]
-                word_index = round(word_index * len(stop_words))
+                word_index = int(round(word_index * len(stop_words)))
                 if word_index != 1:
                     n_t = n_t + 1
                     word_index = word_index-1
-                    sentence = word_drop(sentence, word_index)
+                    sentence, rate = word_drop(sentence, word_index)
 
             elif trans_index == 2:  # drop a verb
                 verbs = [i for i, x in enumerate(
                     nltk.pos_tag(words)) if x in WORD_TAG_DICT["verb"]]
-                word_index = round(word_index * len(verbs))
+                word_index = int(round(word_index * len(verbs)))
                 if word_index != 1:
                     n_t = n_t + 1
                     word_index = word_index-1
-                    sentence = word_drop(sentence, word_index)
-
+                    sentence, rate = word_drop(sentence, word_index)
+            trans_rate += rate
             if n_t >= self.valid_trans:
                 words = nltk.word_tokenize(sentence)
-                return sentence, 1-len(sentence)/length_  # jaccard distance
+                # return sentence, 1-len(sentence)/length_  # jaccard distance
+                return sentence, trans_rate
 
         words = nltk.word_tokenize(sentence)
-        return sentence, 1-len(words)/length_  # jaccard distance
+        # return sentence, 1-len(words)/length_  # jaccard distance
+        return sentence, trans_rate
 
     def get_upper_bound(self):
         return np.array([1]*self.get_vector_size())
@@ -573,15 +596,17 @@ class WordReplace(Transformer):
         words = nltk.word_tokenize(sentence)
         length_ = len(words)
         sentence = super().apply(sentence, transformation_vectors)
+        tran_rate = 0
         trans_rate = 0
         for i in range(len(transformation_vectors)//self.vector_size):
+            rate = 0
             words = nltk.word_tokenize(sentence)
             words_tags = nltk.pos_tag(words)
             length_ = len(words)
             trans_index = transformation_vectors[i*self.vector_size+1]
-            trans_index = round(trans_index*(self.n_trans - 1))
+            trans_index = int(round(trans_index*(self.n_trans - 1)))
             word_index = transformation_vectors[i*self.vector_size]
-            word_index = round(length_ * word_index)
+            word_index = int(round(length_ * word_index))
 
             if word_index > 0:
                 n_t = n_t + 1
@@ -591,10 +616,10 @@ class WordReplace(Transformer):
                     word_tag = words_tags[word_index][1]
                     synonyms = get_synonyms(word, word_tag)
                     syn_index = transformation_vectors[i*self.vector_size + 2]
-                    syn_index = round(syn_index * (len(synonyms)-1))
+                    syn_index = int(round(syn_index * (len(synonyms)-1)))
                     synonym = synonyms[syn_index]
-                    sentence = word_replace(sentence, word_index, synonym)
-                    trans_rate = trans_rate + nltk_modif(word, synonym)/length_
+                    sentence, rate = word_replace(sentence, word_index, synonym)
+                    # trans_rate = trans_rate + nltk_modif(word, synonym)/length_
 
                 if (trans_index == 1):  # Similar replace
                     try:  # not all words can be in the vocabulary
@@ -603,12 +628,12 @@ class WordReplace(Transformer):
                         similars = [best[0] for best in bests]
                         sim_index = transformation_vectors[i *
                                                            self.vector_size + 2]
-                        sim_index = round(sim_index * (len(similars)-1))
+                        sim_index = int(round(sim_index * (len(similars)-1)))
                         similar = similars[sim_index]
                     except:
                         similar = words[word_index]
-                    trans_rate = trans_rate + nltk_modif(word, synonym)/length_
-                    sentence = word_replace(sentence, word_index, similar)
+                    # trans_rate = trans_rate + nltk_modif(word, similar)/length_
+                    sentence, rate = word_replace(sentence, word_index, similar)
 
                 # replace with misspelled form, we calculate jaccard disatnce between the two words
                 if (trans_index == 2):
@@ -617,23 +642,25 @@ class WordReplace(Transformer):
                         misspelled_list = self.misspelled[word]
                         miss_index = transformation_vectors[i *
                                                             self.vector_size + 2]
-                        miss_index = round(
-                            miss_index * (len(misspelled_list)-1))
+                        miss_index = int(round(
+                            miss_index * (len(misspelled_list)-1)))
                         miss_word = misspelled_list[miss_index]
-                        sentence = word_replace(
+                        sentence, rate = word_replace(
                             sentence, word_index, miss_word)
 
-                        trans_rate = trans_rate + \
-                            jaccard_modif_rate(word, miss_word)/length_
-
+                        # trans_rate = trans_rate + \
+                        #     jaccard_modif_rate(word, miss_word)/length_
                 if (trans_index == 3):  # swap words, word swap is considered as two transformations
-                    sentence = word_swap(sentence, word_index)
+                    sentence, rate = word_swap(sentence, word_index)
                     trans_rate = trans_rate + 2/length_
 
+                tran_rate += rate
                 if n_t >= self.valid_trans:
-                    return sentence, trans_rate
+                    # return sentence, trans_rate
+                    return sentence, tran_rate
 
-        return sentence, trans_rate
+        # return sentence, trans_rate
+        return sentence, tran_rate
 
     def get_upper_bound(self):
         return np.array([1]*self.get_vector_size())
@@ -692,32 +719,35 @@ class CompoundTransformer(Transformer):
             end_idx = start_idx + transformation_obj.get_vector_size()*self.n_hidden_action
             self.transformation_offsets.append((start_idx, end_idx))
             start_idx = end_idx
-        print("self.transformation_offsets", self.transformation_offsets)
-        # exit()
+
 
 
     def apply(self, sentence, transformation_vectors):
+        origin_sentence = sentence
         cum_trans_rate = 0
-        try:
-            actions, params = transformation_vectors
-            for i in range(self.num_actions):
-                action_rate = actions[2*i + 1]
-                if action_rate != 0.0:
-                    transform = self.transformation_objects[i]
-                    start_params, end_params = self.transformation_offsets[i]
-                    action_params = params[start_params:end_params]
-                    active_params = get_active_params(
-                        action_params,    VALID_RATE, transform.get_vector_size())
-                    sentence, rate = transform.apply(sentence, active_params)
-                    print("sentence", sentence)
-                    print("rate", rate)
-                    cum_trans_rate = cum_trans_rate + rate
-                    exit()
-                else:  # action is not activated ~ not from top k
-                    pass
-        except:
-            return sentence, cum_trans_rate
-        return sentence, cum_trans_rate
+        # try:
+        actions, params = transformation_vectors
+        for i in range(self.num_actions):
+            action_rate = actions[2*i + 1]
+            if action_rate != 0.0:
+                transform = self.transformation_objects[i]
+                start_params, end_params = self.transformation_offsets[i]
+                action_params = params[start_params:end_params]
+                active_params = get_active_params(
+                    action_params,    VALID_RATE, transform.get_vector_size())
+                sentence, rate = transform.apply(sentence, active_params)
+                # print("partial rate", rate)
+                # print("sentence", sentence)
+                # print("rate", rate)
+                
+                cum_trans_rate = cum_trans_rate + rate
+            else:  # action is not activated ~ not from top k
+                pass
+        # except:
+        #     return sentence, cum_trans_rate/len(sentence.split())
+        x = max(len(sentence.split()),len(origin_sentence.split()))
+        print('new rate', cum_trans_rate/x)
+        return sentence, cum_trans_rate/x
 
     def get_upper_bound(self):
         return np.array([1]*self.get_vector_size())

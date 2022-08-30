@@ -32,7 +32,14 @@ class RingBuffer(object):
         else:
             # This should never happen.
             raise RuntimeError()
-        self.data[(self.start + self.length - 1) % self.maxlen] = v
+        boo = False
+        while not boo:
+            try:
+                self.data[(self.start + self.length - 1) % self.maxlen] = v
+                boo = True
+            except :
+                self.start = (self.start + 1) % self.maxlen
+                boo = False
 
     def clear(self):
         self.start = 0
