@@ -9,4 +9,4 @@ cd RL4E2E
 python train_pdqn.py \
     --action=test \
     --model=pptod \
-    --version=2.0
+    --version=2.1
