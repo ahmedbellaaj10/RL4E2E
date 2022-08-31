@@ -366,7 +366,7 @@ if __name__ == '__main__':
     parser.add_argument('--zero_index_gradients', default=False, help="Whether to zero all gradients for action-parameters not corresponding to the chosen action.", type=bool)
     parser.add_argument('--action_input_layer', default=0, help='Which layer to input action parameters.', type=int)
     parser.add_argument('--layers', default=(128,), help='Duplicate action-parameter inputs.')
-    parser.add_argument('--save_freq', default=1, help='How often to save models (0 = never).', type=int)
+    parser.add_argument('--save_freq', default=1000, help='How often to save models (0 = never).', type=int)
     parser.add_argument('--save_dir', default=os.path.join(FRAMEWORK_PATH,"results"), help='Output directory.', type=str)
     parser.add_argument('--action', default="train", help="train or evaluate", type=str)  
     parser.add_argument('--model', default="galaxy", choices=["galaxy", "pptod"], help="the model we want to test", type=str) 
