@@ -9,4 +9,4 @@ cd RL4E2E
 python train_pdqn.py \
     --action=test \
     --model=galaxy \
-    --version=2.1
+    --version=2.0

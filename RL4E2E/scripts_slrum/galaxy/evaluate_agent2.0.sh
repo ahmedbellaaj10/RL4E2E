@@ -21,8 +21,6 @@ cd RL4E2E
 # python -m spacy download en_core_web_sm
 
 python train_pdqn.py \
-    --episodes=2000 \
-    --epsilon_steps=10000 \
     --action=test \
     --model=galaxy \
     --version=2.0

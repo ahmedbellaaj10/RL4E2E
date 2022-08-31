@@ -21,8 +21,8 @@ cd RL4E2E
 # python -m spacy download en_core_web_sm
 
 python train_pdqn.py \
-    --episodes=2000 \
-    --epsilon_steps=2000 \
+    --episodes=10000 \
+    --epsilon_steps=1000 \
     --action=train \
     --model=pptod \
     --version=2.0 \

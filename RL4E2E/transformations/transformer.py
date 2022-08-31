@@ -736,6 +736,8 @@ class CompoundTransformer(Transformer):
                 active_params = get_active_params(
                     action_params,    VALID_RATE, transform.get_vector_size())
                 sentence, rate = transform.apply(sentence, active_params)
+                print('transform', transform)
+                print("rate",rate)
                 # print("partial rate", rate)
                 # print("sentence", sentence)
                 # print("rate", rate)
@@ -745,9 +747,9 @@ class CompoundTransformer(Transformer):
                 pass
         # except:
         #     return sentence, cum_trans_rate/len(sentence.split())
-        x = max(len(sentence.split()),len(origin_sentence.split()))
-        print('new rate', cum_trans_rate/x)
-        return sentence, cum_trans_rate/x
+        # x = max(len(sentence.split()),len(origin_sentence.split()))
+        # print('new rate', cum_trans_rate/x)
+        return sentence, cum_trans_rate
 
     def get_upper_bound(self):
         return np.array([1]*self.get_vector_size())
