@@ -10,7 +10,6 @@ import torch.nn.functional as F
 from RL4E2E.utils.constants import GALAXY_PATH, MODELS_PATH, PPTOD_PATH
 
 sys.path.append(GALAXY_PATH)
-# print(GALAXY_PATH)
 from galaxy.trainers.trainer import  MultiWOZTrainer 
 from galaxy.models.model_base import ModelBase
 from galaxy.models.generator import Generator
@@ -38,7 +37,6 @@ class GalaxyInterface(Interface):
     
     def __init__(self, version, log_path):
         sys.path.append(GALAXY_PATH)
-        print("GALAXY_PATH",GALAXY_PATH)
         if str(version) == "2.0":
             stream = open(os.path.join(MODELS_PATH,"galaxy_config2.0.yaml"), 'r')
         else :
@@ -56,15 +54,12 @@ class GalaxyInterface(Interface):
             num_token_embeddings=doc["num_token_embeddings"], num_pos_embeddings=doc["num_pos_embeddings"], num_type_embeddings=doc["num_type_embeddings"], num_turn_embeddings=doc["num_turn_embeddings"], num_act=doc["num_act"], num_heads=doc["num_heads"], num_layers=doc["num_layers"] , hidden_dim=doc["hidden_dim"], padding_idx=doc["padding_idx"], dropout=doc["dropout"], embed_dropout=doc["embed_dropout"], attn_dropout=doc["attn_dropout"], ff_dropout=doc["ff_dropout"], use_discriminator=doc["use_discriminator"], dis_ratio=doc["dis_ratio"], bce_ratio=doc["bce_ratio"],pos_trainable= doc["pos_trainable"], with_joint_act=doc["with_joint_act"], with_rdrop_act=doc["with_rdrop_act"], initializer_range=doc["initializer_range"], lr=doc["lr"], weight_decay=doc["weight_decay"], gradient_accumulation_steps=doc["gradient_accumulation_steps"], warmup_steps=doc["warmup_steps"], max_grad_norm=doc["max_grad_norm"], generator=doc["generator"],min_gen_len=doc["min_gen_len"], max_gen_len=doc["max_gen_len"], use_true_prev_bspn= doc["use_true_prev_bspn"] , use_true_prev_aspn= doc["use_true_prev_aspn"],use_true_db_pointer=doc["use_true_db_pointer"], use_true_prev_resp= doc["use_true_prev_resp"], use_true_curr_bspn=doc["use_true_curr_bspn"], use_true_curr_aspn=doc["use_true_curr_aspn"], use_all_previous_context=doc["use_all_previous_context"], use_true_bspn_for_ctr_eval=doc["use_true_bspn_for_ctr_eval"], use_true_domain_for_ctr_eval=doc["use_true_domain_for_ctr_eval"], beam_size=doc["beam_size"], length_average=doc["length_average"], length_penalty=doc["length_penalty"], ignore_unk=doc["ignore_unk"], use_gpu=doc["use_gpu"], BPETextField=textfield, Dataset=data, Trainer=trainer, Generator= gene , Model=model_)
             break
         self.hparams.use_gpu = torch.cuda.is_available() and self.hparams.gpu >= 1
-        if self.hparams.use_gpu :
-            print("can use GPUUUUUU !!!!")
 
         if str(version) == "2.0":
             self.data = json.load(open(os.path.join(GALAXY_PATH,"data/multiwoz2.0/data_for_galaxy.json")))
         else :
             self.data = json.load(open(os.path.join(GALAXY_PATH,"data/multiwoz2.1/data_for_galaxy.json")))
         os.chdir(GALAXY_PATH)
-        print("self.hparams",self.hparams)
         self.reader = MyMultiWOZBPETextField(self.hparams)
         self.evaluator = MultiWOZEvaluator(reader=self.reader)
         self.hparams.Model.num_token_embeddings = self.reader.vocab_size
@@ -140,17 +135,12 @@ class GalaxyInterface(Interface):
     
     def encode_dialogue(self , dial_name, turn_or_dial):
         encoded = self.reader._get_encoded_data(dial_name, turn_or_dial)
-        # print("encoded", encoded)
         return encoded
 
     def predict_turn(self , turn_with_context , pv_turn=None):
         with torch.no_grad():
-            
-            # for dial_idx, dialog in enumerate(turn_with_context):
-            #     print("dialog", dialog)
             pv_turn = {}
             for turn_idx, turn in enumerate(turn_with_context):
-                    # print(turn)
                     first_turn = (turn_idx == 0)
                     inputs, prompt_id = self.reader.convert_turn_eval(turn, pv_turn, first_turn)
                     batch, batch_size = self.reader.collate_fn_multi_turn(samples=[inputs])
@@ -161,13 +151,10 @@ class GalaxyInterface(Interface):
                             max_len = 80
                         outputs = self.trainer.func_model.infer(inputs=batch, start_id=prompt_id,
                                                         eos_id=self.reader.eos_r_id, max_gen_len=max_len)
-                        # resp_gen, need to trim previous context
                         generated = outputs[0].cpu().numpy().tolist()
                         try:
                             decoded = self.trainer.decode_generated_act_resp(generated)
                         except ValueError as exception:
-                            # self.logger.info(str(exception))
-                            # self.logger.info(self.trainer.tokenizer.decode(generated))
                             decoded = {'resp': [], 'bspn': [], 'aspn': []}
                     else:  # predict bspn, access db, then generate act and resp
                         outputs = self.trainer.func_model.infer(inputs=batch, start_id=prompt_id,
@@ -215,12 +202,10 @@ class GalaxyInterface(Interface):
                         pv_turn['bspn'] = turn['bspn'] if self.reader.use_true_prev_bspn else decoded['bspn']
                         pv_turn['db'] = turn['db'] if self.reader.use_true_prev_bspn else db
                     pv_turn['aspn'] = turn['aspn'] if self.reader.use_true_prev_aspn else decoded['aspn']
-            # print("turn_with_context", turn_with_context)
             tmp_dialog_result = self.reader.inverse_transpose_turn(turn_with_context[::-1])
             results, _ = self.reader.wrap_result_lm(tmp_dialog_result)
             turn_output = [results[1]]
             
-            # print('results :', results)
             return turn_output , tmp_dialog_result , pv_turn
 
     def predict_dialogue(self , dial , pv_turn=None):
@@ -228,7 +213,6 @@ class GalaxyInterface(Interface):
         with torch.no_grad():
             pv_turn = {}
             for turn_idx, turn in enumerate(dial):
-                    # print(turn)
                     first_turn = (turn_idx == 0)
                     inputs, prompt_id = self.reader.convert_turn_eval(turn, pv_turn, first_turn)
                     batch, batch_size = self.reader.collate_fn_multi_turn(samples=[inputs])
@@ -244,8 +228,6 @@ class GalaxyInterface(Interface):
                         try:
                             decoded = self.trainer.decode_generated_act_resp(generated)
                         except ValueError as exception:
-                            # self.logger.info(str(exception))
-                            # self.logger.info(self.trainer.tokenizer.decode(generated))
                             decoded = {'resp': [], 'bspn': [], 'aspn': []}
                     else:  # predict bspn, access db, then generate act and resp
                         outputs = self.trainer.func_model.infer(inputs=batch, start_id=prompt_id,
@@ -474,60 +456,3 @@ class PptodInterface(Interface):
         else :
             all_goals = json.load(open(MODELS_PATH+"pptod/data/multiwoz2.1/data/multi-woz-analysis/goal_of_each_dials.json"))
         return list(all_goals[dial_name+".json"].keys())
-
-# if __name__ == "__main__":
-#     # interface = "galaxy"
-#     interface = "pptod"
-#     if interface == "galaxy" :
-#         x = GalaxyInterface()
-#         idx , dial_title, dial = x.get_dialogue()
-#         print(dial)
-#         print("length", x.get_dialogue_length(dial))
-#         print(x.get_dialogue_goal(dial))
-        
-#         turn = x.get_turn_with_context(dial , 1)
-        
-
-#         print("turn",turn)
-        
-#         encoded = x.encode(dial_title,turn)
-#         print("encode",encoded)
-        
-#         turn_output , tmp_dialog_result , pv_turn = x.predict_turn(encoded, 1)
-#         bleu , success , inform = x.evaluate_turn(turn_output)
-#         print("----bleu", bleu)
-#         print("---------------------------------")
-#         print("----turn_output", turn_output)
-#         print("---------------------------------")
-#         print("----tmp_dialog_result", tmp_dialog_result)
-#         print("---------------------------------")
-#         print("----pv_turn", pv_turn)
-#         print("---------------------------------")
-#     else :
-#         with torch.no_grad():
-#             x = PptodInterface()
-#             data = x.data
-#             idx , dial_title , dialogue = x.get_dialogue()
-#             print("get dialogue done")
-#             print(dialogue)
-#             exit()
-#             print(x.get_dialogue_goal(dial_title))
-
-#             turn = x.get_turn_with_context(dialogue , 1)
-#             print("turn with context", turn)
-#             # turn = x.get_turn(dialogue , 1)
-#             # print("turn", turn)
-#             print("get turn done")
-            
-#             # input("fdbdsfbdsgbdgs")
-#             prepared_dial = x.prepare_turn(turn)
-#             print("preparing data done")
-#             print("prepared dial", prepared_dial)
-#             # import time
-#             # time.sleep(10)
-#             dial_result = x.predict_turn(prepared_dial)
-#             print("dial result", dial_result)
-#             dev_bleu, dev_success, dev_match = x.evaluate_turn(dial_result)
-#             print("dev_bleu",dev_bleu)
-#             print("dev_success",dev_success) 
-#             print("dev_match",dev_match)            

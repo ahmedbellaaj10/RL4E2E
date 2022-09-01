@@ -1,3 +1,5 @@
+import math
+import random
 import gym
 from gym import spaces
 from gym.spaces import MultiDiscrete, Discrete
@@ -129,7 +131,10 @@ class MultiwozSimulator(gym.Env):
         # new_utterance_delex , _ = self.compound_transfomer.apply(utterance_delex , action)
         new_utterance_delex = new_utterance
         new_utterance , new_utterance_delex = self.restore_keywords(new_utterance , new_utterance_delex , idxs)
-        trans_rate = trans_rate / max(len(utterance), len(new_utterance))
+        trans_rate = (trans_rate / max(len(utterance.split()), len(new_utterance.split()))) / math.ceil(self.num_selected_actions/2)
+        pen = random.uniform(0,0.1/(7-self.num_selected_actions))
+        print("pen", pen)
+        trans_rate += pen
         logging.info(f"after transformation, the sentence was: {new_utterance}")
         print(f"after transformation, the sentence was: {new_utterance}")
         trans_rate = min(trans_rate , 1)

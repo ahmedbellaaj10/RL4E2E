@@ -429,13 +429,6 @@ class WordInsert(Transformer):
                         stop_word_index * len(self.stop_words)) - 1)
                     stop_word = self.stop_words[stop_word_index]
                     sentence, rate = word_insert(sentence, word_index, stop_word)
-                # if (trans_index == 2):  # insert an emoji
-                #     print("insert an emoji")
-                #     emoji_index = transformation_vectors[i*self.vector_size+2]
-                #     emoji_index = int(round(emoji_index * len(self.emoji))) - 1
-                #     emoji = self.emoji[emoji_index]
-                #     print("emoji",emoji)
-                #     sentence, rate = word_insert(sentence, emoji_index, emoji)
                 if (trans_index == 2):  # repeat a word
                     to_insert = words[word_index]
                     sentence, rate = word_insert(sentence, word_index, to_insert)
@@ -736,19 +729,10 @@ class CompoundTransformer(Transformer):
                 active_params = get_active_params(
                     action_params,    VALID_RATE, transform.get_vector_size())
                 sentence, rate = transform.apply(sentence, active_params)
-                print('transform', transform)
-                print("rate",rate)
-                # print("partial rate", rate)
-                # print("sentence", sentence)
-                # print("rate", rate)
                 
                 cum_trans_rate = cum_trans_rate + rate
             else:  # action is not activated ~ not from top k
                 pass
-        # except:
-        #     return sentence, cum_trans_rate/len(sentence.split())
-        # x = max(len(sentence.split()),len(origin_sentence.split()))
-        # print('new rate', cum_trans_rate/x)
         return sentence, cum_trans_rate
 
     def get_upper_bound(self):

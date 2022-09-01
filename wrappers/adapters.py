@@ -283,9 +283,7 @@ class MyMultiWozData(MultiWozData):
         self.cfg = cfg
         self.vocab = self._build_vocab(self.cfg)
         self.tokenizer = tokenizer
-        print ('Original Tokenizer Size is %d' % len(self.tokenizer))
         self.special_token_list = self.add_sepcial_tokens()
-        print ('Tokenizer Size after extension is %d' % len(self.tokenizer))
         self.pad_token_id = self.tokenizer.convert_tokens_to_ids(['<_PAD_>'])[0]
         self.sos_context_token_id = self.tokenizer.convert_tokens_to_ids(['<sos_context>'])[0]
         self.eos_context_token_id = self.tokenizer.convert_tokens_to_ids(['<eos_context>'])[0]
@@ -302,7 +300,6 @@ class MyMultiWozData(MultiWozData):
             raise Exception('Wrong Model Name!!!')
         self.bos_token = self.tokenizer.convert_ids_to_tokens([self.bos_token_id])[0]
         self.eos_token = self.tokenizer.convert_ids_to_tokens([self.eos_token_id])[0]
-        print ('bos token is {}, eos token is {}'.format(self.bos_token, self.eos_token))
 
         self.all_sos_token_id_list = []
         for token in all_sos_token_list:
@@ -447,7 +444,6 @@ class MyMultiWOZBPETextField(MultiWOZBPETextField):
             encoded_file = os.path.join(self.data_root, f'data/multiwoz{self.version}', self.data_processed)
 
             if os.path.exists(encoded_file):
-                print('Reading encoded data from {}'.format(encoded_file))
                 self.data = json.loads(
                     open(os.path.join(self.data_root, f'data/multiwoz{self.version}/data_for_galaxy.json'), 'r', encoding='utf-8').read().lower())
                 encoded_data = json.loads(open(encoded_file, 'r', encoding='utf-8').read())
@@ -455,7 +451,6 @@ class MyMultiWOZBPETextField(MultiWOZBPETextField):
                 self.dev = encoded_data['dev']
                 self.test = encoded_data['test']
             else:
-                print('Encoding data now and save the encoded data in {}'.format(encoded_file))
                 # not exists, encode data and save
                 self.data = json.loads(
                     open(os.path.join(self.data_root, f'data/multiwoz{self.version}/data_for_galaxy.json'), 'r', encoding='utf-8').read().lower())
