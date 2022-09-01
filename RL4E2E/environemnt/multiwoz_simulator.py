@@ -124,7 +124,6 @@ class MultiwozSimulator(gym.Env):
         turn = self.interface.get_turn_with_context(dialogue_copy , num_current_turn)
         utterance , utterance_delex = self.interface.get_utterance_and_utterance_delex(dialogue_copy , num_current_turn)
         logging.info(f"before transformation, the sentence was: {utterance}")
-        print(f"before transformation, the sentence was: {utterance}")
         # logging.info(f"before transformation, the delexicalized sentence was: {utterance_delex}")
         utterance_ , utterance_delex_ , idxs = self.remove_keywords(utterance , utterance_delex)
         new_utterance , trans_rate = self.compound_transfomer.apply(utterance_, action)
@@ -133,12 +132,9 @@ class MultiwozSimulator(gym.Env):
         new_utterance , new_utterance_delex = self.restore_keywords(new_utterance , new_utterance_delex , idxs)
         trans_rate = (trans_rate / max(len(utterance.split()), len(new_utterance.split()))) / math.ceil(self.num_selected_actions/2)
         pen = random.uniform(0,0.1/(7-self.num_selected_actions))
-        print("pen", pen)
         trans_rate += pen
         logging.info(f"after transformation, the sentence was: {new_utterance}")
-        print(f"after transformation, the sentence was: {new_utterance}")
         trans_rate = min(trans_rate , 1)
-        print("transformation rate", trans_rate)
         # logging.info(f"after transformation, the delexicalized sentence was: {utterance_delex}")
         turn_modified = self.interface.copy_dial_or_turn(turn)
         self.interface.set_utterance_and_utterance_delex(turn_modified, num_current_turn ,new_utterance, new_utterance_delex)
@@ -167,10 +163,8 @@ class MultiwozSimulator(gym.Env):
                 reward += 10
             self.state = self.reset()
         bleu_diff = bleu1 - bleu2 if bleu1 - bleu2>0 else (bleu1 - bleu2) -100
-        print(bool(trans_rate))
         x = (bleu_diff) + trans_rate*(beta+1)
         # if trans_rate else (bleu_diff)
-        print("x", x)
         reward += x
         logging.info(f"reward is {reward}")
         return utterance,new_utterance, self.state, reward, trans_rate, done, successful
