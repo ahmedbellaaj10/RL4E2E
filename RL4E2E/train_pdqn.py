@@ -105,79 +105,85 @@ def train(env,args,log_path):
     returns = []
     start_time = time.time()
     pbar = tqdm(range(args.episodes-max(checkpoints)))
-    # try :
-    for i in pbar:
-        info = {}
-        info['turn'] = []
-        state = env.reset()
-        episode_reward = 0.
-        logging.info("the reward is reset to 0")
-        # agent.start_episode()
-        done = False
-        next_action ,ac_n ,all_action_parameters  = None, None, None
-        info['valids'] = '0'
-        while not done:
-            turn_info = {}
-            # turn_info['valids'] = 0
-            if next_action is None:
-                state = np.array(state, dtype=np.float32, copy=False)
-                act, action_parameters = agent.act(state)
-                action_parameters = pad_action(act, action_parameters , agent.top_k)
-                action = (act, action_parameters)
-                all_action_parameters = enhance_action(act, action_parameters , agent.top_k)
-                all_action = (act, all_action_parameters)
-            else :
+    try :
+        for i in pbar:
+            info = {}
+            info['turn'] = []
+            state = env.reset()
+            episode_reward = 0.
+            logging.info("the reward is reset to 0")
+            # agent.start_episode()
+            done = False
+            next_action ,ac_n ,all_action_parameters  = None, None, None
+            info['valids'] = '0'
+            while not done:
+                turn_info = {}
+                # turn_info['valids'] = 0
+                if next_action is None:
+                    state = np.array(state, dtype=np.float32, copy=False)
+                    act, action_parameters = agent.act(state)
+                    action_parameters = pad_action(act, action_parameters , agent.top_k)
+                    action = (act, action_parameters)
+                    all_action_parameters = enhance_action(act, action_parameters , agent.top_k)
+                    all_action = (act, all_action_parameters)
+                else :
+                    all_action = (ac_n, all_action_parameters)
+                info['episode'] = int(i)
+                turn_info['state'] = np.array(state, dtype=str).tolist() 
+                info['dialogue'] = env.hidden_state_dial_name
+                info['actions'] = np.array(all_action[0], dtype=str).tolist() 
+                info['actions_params'] = np.array(all_action[1], dtype=str).tolist() 
+                ret = env.step(all_action)
+                utterance,new_utterance,next_state, reward, trans_rate, done, successful = ret
+                next_state = np.array(next_state, dtype=np.float32, copy=False)
+                next_action = agent.act(next_state)
+                ac_n, p_n = next_action
+                ac_, p_ = action
+                all_action_parameters = enhance_action(ac_n, p_n , agent.top_k)
                 all_action = (ac_n, all_action_parameters)
-            info['episode'] = int(i)
-            turn_info['state'] = np.array(state, dtype=str).tolist() 
-            info['dialogue'] = env.hidden_state_dial_name
-            info['actions'] = np.array(all_action[0], dtype=str).tolist() 
-            info['actions_params'] = np.array(all_action[1], dtype=str).tolist() 
-            ret = env.step(all_action)
-            utterance,new_utterance,next_state, reward, trans_rate, done, successful = ret
-            next_state = np.array(next_state, dtype=np.float32, copy=False)
-            next_action = agent.act(next_state)
-            ac_n, p_n = next_action
-            ac_, p_ = action
-            all_action_parameters = enhance_action(ac_n, p_n , agent.top_k)
-            all_action = (ac_n, all_action_parameters)
-            agent.step(state, p_, reward, next_state, p_n, done)
-            state = next_state
-            turn_info['utterance'] = utterance
-            turn_info['new_utterance'] = new_utterance
-            turn_info['reward'] = str(reward)
-            turn_info['trans_rate'] = str(trans_rate)
-            turn_info['valid'] = trans_rate>= 0.25
-            if turn_info['valid'] :
-                info['valids']=str(int(info['valids'])+1)
-            turn_info['done'] = done
-            episode_reward += reward
-            info['turn'].append(turn_info)
-            if done:
-                info['successful'] = successful
-                info['valid'] = bool(int(info['valids'])/state[0] > 0.5)
-                info['episode_reward'] = str(episode_reward)
-                info['avg_reward'] = str(episode_reward/len(info['turn']))
-                infos.append(info)
-                break
-        agent.end_episode()
-        returns.append(episode_reward)
-        total_reward += episode_reward
-        logging.info(f"after episode {i} total_reward is, {total_reward}")
-        if i+max(checkpoints) != 0 and i+max(checkpoints) % args.save_freq == 0:
-            os.mkdir(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
-            agent.save_models(os.path.join(save_dir,"episode_"+str(i+1+max(checkpoints))))
-            file = open(os.path.join(save_dir,"infos_train"+str(checkpoints)+".json"), "w")
-            json.dump(infos, file, indent=4)
-            file.close()
-        message = "reward after episode "+str(i+max(checkpoints))+" is "+str(total_reward)
-        pbar.set_description(message)
-    # except :
-        # info['turn'].append(turn_info)
-        # infos.append(info)
-        # file = open(os.path.join(save_dir,"infos_train_backup.json"), "w")
-        # json.dump(infos, file, indent=4)
-        # file.close()
+                agent.step(state, p_, reward, next_state, p_n, done)
+                state = next_state
+                turn_info['utterance'] = utterance
+                turn_info['new_utterance'] = new_utterance
+                turn_info['reward'] = str(reward)
+                turn_info['trans_rate'] = str(trans_rate)
+                turn_info['valid'] = trans_rate>= 0.25
+                if turn_info['valid'] :
+                    info['valids']=str(int(info['valids'])+1)
+                turn_info['done'] = done
+                episode_reward += reward
+                info['turn'].append(turn_info)
+                if done:
+                    info['successful'] = successful
+                    info['valid'] = bool(int(info['valids'])/state[0] > 0.5)
+                    info['episode_reward'] = str(episode_reward)
+                    info['avg_reward'] = str(episode_reward/len(info['turn']))
+                    infos.append(info)
+                    break
+            agent.end_episode()
+            returns.append(episode_reward)
+            total_reward += episode_reward
+            logging.info(f"after episode {i} total_reward is, {total_reward}")
+            if i+max(checkpoints) != 0 and i+max(checkpoints) % args.save_freq == 0:
+                os.mkdir(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
+                agent.save_models(os.path.join(save_dir,"episode_"+str(i+1+max(checkpoints))))
+                file = open(os.path.join(save_dir,"infos_train"+str(checkpoints)+".json"), "w")
+                json.dump(infos, file, indent=4)
+                file.close()
+            message = "reward after episode "+str(i+max(checkpoints))+" is "+str(total_reward)
+            pbar.set_description(message)
+    except KeyboardInterrupt:
+        info['turn'].append(turn_info)
+        infos.append(info)
+        file = open(os.path.join(save_dir,"infos_train_backup.json"), "w")
+        json.dump(infos, file, indent=4)
+        file.close()
+    except :
+        info['turn'].append(turn_info)
+        infos.append(info)
+        file = open(os.path.join(save_dir,"infos_train_backup.json"), "w")
+        json.dump(infos, file, indent=4)
+        file.close()
             
     # except Exception:
     #     # logging.info("exception :",Exception)
@@ -303,12 +309,19 @@ def evaluate(env,args,logger):
                 agent.save_models(os.path.join(save_dir,"episode_"+str(i+1+max(checkpoints))))
             message = "reward after episode "+str(i+max(checkpoints))+" is "+str(total_reward)
             pbar.set_description(message)
+    except KeyboardInterrupt:
+        info['turn'].append(turn_info)
+        infos.append(info)
+        file = open(os.path.join(save_dir,"infos_eval_backup.json"), "w")
+        json.dump(infos, file, indent=4)   
+        file.close()   
     except :
         info['turn'].append(turn_info)
         infos.append(info)
         file = open(os.path.join(save_dir,"infos_eval_backup.json"), "w")
         json.dump(infos, file, indent=4)   
-        file.close()        
+        file.close()  
+        
     end_time = time.time()
     file = open(os.path.join(save_dir,"infos_eval.json"), "w")
     json.dump(infos, file, indent=4)
