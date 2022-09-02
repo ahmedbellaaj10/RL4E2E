@@ -718,21 +718,23 @@ class CompoundTransformer(Transformer):
     def apply(self, sentence, transformation_vectors):
         origin_sentence = sentence
         cum_trans_rate = 0
-        # try:
-        actions, params = transformation_vectors
-        for i in range(self.num_actions):
-            action_rate = actions[2*i + 1]
-            if action_rate != 0.0:
-                transform = self.transformation_objects[i]
-                start_params, end_params = self.transformation_offsets[i]
-                action_params = params[start_params:end_params]
-                active_params = get_active_params(
-                    action_params,    VALID_RATE, transform.get_vector_size())
-                sentence, rate = transform.apply(sentence, active_params)
-                
-                cum_trans_rate = cum_trans_rate + rate
-            else:  # action is not activated ~ not from top k
-                pass
+        try:
+            actions, params = transformation_vectors
+            for i in range(self.num_actions):
+                action_rate = actions[2*i + 1]
+                if action_rate != 0.0:
+                    transform = self.transformation_objects[i]
+                    start_params, end_params = self.transformation_offsets[i]
+                    action_params = params[start_params:end_params]
+                    active_params = get_active_params(
+                        action_params,    VALID_RATE, transform.get_vector_size())
+                    sentence, rate = transform.apply(sentence, active_params)
+                    
+                    cum_trans_rate = cum_trans_rate + rate
+                else:  # action is not activated ~ not from top k
+                    pass
+        except :
+            return sentence, cum_trans_rate
         return sentence, cum_trans_rate
 
     def get_upper_bound(self):
