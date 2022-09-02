@@ -182,23 +182,26 @@ class MultiwozSimulator(gym.Env):
         for idx , word in enumerate(delex):
             if word.startswith('[') and word.endswith(']') or word.startswith('<') and word.endswith('>'):
                 try :
-                    kw = user[idx]
-                    user.remove(user[idx])
-                except :
                     kw = user[idx-i]
-                    user.remove(user[idx-1])
-                try :
-                    while user[idx] != delex[idx+1]:
-                        kw = kw+" "+user[idx]
-                        user.remove(user[idx])
-                except :
+                    user.remove(user[idx-i])
+                    try :
+                        while user[idx] != delex[idx+1]:
+                            kw = kw+" "+user[idx]
+                            user.remove(user[idx])
+                        idxs.update({idx+i : [kw , word]})
+                        delex.remove(word)
+                        i+=1
+                    except :
+                        pass
+                except  :
                     pass
-                idxs.update({idx+i : [kw , word]})
-                delex.remove(word)
-                i+=1
+
+                
                 
         utterance = ' '.join(user)
         utterance_delex = ' '.join(delex)
+        print("utterance",utterance)
+        print("utterance_delex",utterance_delex)
         return utterance , utterance_delex , idxs
 
     def restore_keywords(self ,utterance , utterance_delex , idxs):
