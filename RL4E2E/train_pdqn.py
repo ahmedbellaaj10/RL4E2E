@@ -178,7 +178,8 @@ def train(env,args,log_path):
         file = open(os.path.join(save_dir,"infos_train_backup.json"), "w")
         json.dump(infos, file, indent=4)
         file.close()
-    except :
+    except Exception:
+        print(Exception)
         info['turn'].append(turn_info)
         infos.append(info)
         file = open(os.path.join(save_dir,"infos_train_backup.json"), "w")
