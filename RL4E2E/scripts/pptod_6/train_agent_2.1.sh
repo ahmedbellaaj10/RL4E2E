@@ -7,10 +7,10 @@ echo $WORK_DIR
 cd RL4E2E
 
 python train_pdqn.py \
-    --episodes=5000 \
+    --seed=512 \
+    --episodes=8000 \
     --epsilon_steps=1000 \
     --action=train \
-    --model=galaxy \
-    --version=2.0 \
-    --num_selected_actions=1
-    
+    --model=pptod \
+    --version=2.1 \
+    --num_selected_actions=6
