@@ -307,7 +307,7 @@ def evaluate(env,args,logger):
             logging.info(f"after episode {i} total_reward is, {total_reward}")
             if i+max(checkpoints) != 0 and i+max(checkpoints) % args.save_freq == 0:
                 os.mkdir(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
-                agent.save_models(os.path.join(save_dir,"episode_"+str(i+1+max(checkpoints))))
+                agent.save_models(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
             message = "reward after episode "+str(i+max(checkpoints))+" is "+str(total_reward)
             pbar.set_description(message)
     except KeyboardInterrupt:
