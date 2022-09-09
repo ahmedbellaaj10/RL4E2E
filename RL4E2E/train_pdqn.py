@@ -164,11 +164,7 @@ def train(env,args,log_path):
             returns.append(episode_reward)
             total_reward += episode_reward
             logging.info(f"after episode {i} total_reward is, {total_reward}")
-            print(i+max(checkpoints))
-            print("i+max(checkpoints) % args.save_freq",i+max(checkpoints) % args.save_freq)
-            print("(i+max(checkpoints)) % args.save_freq == 0", (i+max(checkpoints)) % args.save_freq == 0)
             if i+max(checkpoints) != 0 and (i+max(checkpoints)) % args.save_freq == 0:
-                print("aya nsaviw")
                 os.mkdir(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
                 agent.save_models(os.path.join(save_dir,"episode_"+str(i+max(checkpoints))))
                 file = open(os.path.join(save_dir,"infos_train"+str(max(checkpoints))+".json"), "w")

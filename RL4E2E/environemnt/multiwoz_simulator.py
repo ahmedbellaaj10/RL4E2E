@@ -200,8 +200,6 @@ class MultiwozSimulator(gym.Env):
                 
         utterance = ' '.join(user)
         utterance_delex = ' '.join(delex)
-        print("utterance",utterance)
-        print("utterance_delex",utterance_delex)
         return utterance , utterance_delex , idxs
 
     def restore_keywords(self ,utterance , utterance_delex , idxs):
