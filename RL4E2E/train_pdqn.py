@@ -142,7 +142,7 @@ def train(env,args,log_path):
                 all_action_parameters = enhance_action(ac_n, p_n , agent.top_k)
                 all_action = (ac_n, all_action_parameters)
                 agent.step(state, p_, reward, next_state, p_n, done)
-                state = next_state
+                
                 turn_info['utterance'] = utterance
                 turn_info['new_utterance'] = new_utterance
                 turn_info['reward'] = str(reward)
@@ -155,11 +155,12 @@ def train(env,args,log_path):
                 info['turn'].append(turn_info)
                 if done:
                     info['successful'] = successful
-                    info['valid'] = bool(int(info['valids'])/state[0] > 0.5)
+                    info['valid'] = bool(int(info['valids'])/state[1] > 0.5)
                     info['episode_reward'] = str(episode_reward)
                     info['avg_reward'] = str(episode_reward/len(info['turn']))
                     infos.append(info)
                     break
+                state = next_state
             agent.end_episode()
             returns.append(episode_reward)
             total_reward += episode_reward
@@ -291,15 +292,15 @@ def evaluate(env,args,logger):
                 turn_info['done'] = done
                 episode_reward += reward
                 info['turn'].append(turn_info)
-                state = next_state
+                
                 if done:
                     info['successful'] = successful
-                    info['valid'] = bool(int(info['valids'])/state[0] > 0.5)
+                    info['valid'] = bool(int(info['valids'])/state[1] > 0.5)
                     info['episode_reward'] = str(episode_reward)
                     info['avg_reward'] = str(episode_reward/len(info['turn']))
                     infos.append(info)
                     break
-                
+                state = next_state
                 
             agent.end_episode()
             returns.append(episode_reward)

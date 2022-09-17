@@ -424,8 +424,6 @@ class PptodInterface(Interface):
         
         with torch.no_grad():
             turn = one_inference_turn
-            import time
-            time.sleep(10)
             ref_bs, ref_act, ref_db = False, False, False # we only consider e2e evaluation
             input_contain_db=self.use_db_as_input
             eva_batch_size=self.args.number_of_gpu * self.args.batch_size_per_gpu
@@ -439,6 +437,12 @@ class PptodInterface(Interface):
                 dial_result.append(item)
             return dial_result , None , None
 
+    def predict_dial(self, dial):
+        result = []
+        for turn in dial:
+            result.append(self.predict_turn(turn)[0][0])
+        return result
+
     def prepare_one_inference_batch(self , one_item_batch_list):
         elements = one_item_batch_list[0]
         formatted = []
@@ -450,9 +454,9 @@ class PptodInterface(Interface):
         dev_bleu, dev_success, dev_match = self.evaluator.validation_metric(result)
         return dev_bleu, dev_success, dev_match
 
-    def get_dialogue_goal(self, dial_name):
-        if str(self.version) == "2.0":
-            all_goals = json.load(open(MODELS_PATH+"pptod/data/multiwoz2.0/data/multi-woz-analysis/goal_of_each_dials.json"))
+    def get_dialogue_goal(self, dial, version):
+        if str(version) == "2.0":
+            all_goals = json.load(open(MODELS_PATH+"/pptod/data/multiwoz2.0/data/multi-woz-analysis/goal_of_each_dials.json"))
         else :
-            all_goals = json.load(open(MODELS_PATH+"pptod/data/multiwoz2.1/data/multi-woz-analysis/goal_of_each_dials.json"))
-        return list(all_goals[dial_name+".json"].keys())
+            all_goals = json.load(open(MODELS_PATH+"/pptod/data/multiwoz2.1/data/multi-woz-analysis/goal_of_each_dials.json"))
+        return list(all_goals[dial+".json"].keys())
