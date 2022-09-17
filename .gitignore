@@ -5,6 +5,5 @@ PickNPlug/
 RL4E2E.egg-info/
 internals/
 **/__pycache__/
-RL4E2E/results/*
 *.pyc
 bert_model
