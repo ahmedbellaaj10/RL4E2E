@@ -3,6 +3,7 @@ Models/pptod
 myvirtualenv/
 RL4E2E.egg-info/
 internals/
+RL4E2E/scripts_cc/galaxy/ENV/
 **/__pycache__/
 *.pyc
 bert_model
