@@ -1,0 +1,5 @@
+/home/ahmedbe/projects/def-foutsekh/ahmedbe/RL4E2E
+Traceback (most recent call last):
+  File "train_pdqn.py", line 6, in <module>
+    import numpy as np
+ModuleNotFoundError: No module named 'numpy'

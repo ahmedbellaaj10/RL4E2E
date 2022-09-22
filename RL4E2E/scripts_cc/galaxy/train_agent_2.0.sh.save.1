@@ -19,9 +19,10 @@ cd RL4E2E
 # python -m gensim.downloader --download glove-wiki-gigaword-100
 
 python train_pdqn.py \
-    --episodes=2000 \
+    --episodes=5000 \  
+    --seed=1000
     --epsilon_steps=1000 \
     --action=train \
     --model=galaxy \
-    --version=2.1 \
-    --num_selected_actions=1
+    --version=2.0 \
+    --num_selected_actions=6    
